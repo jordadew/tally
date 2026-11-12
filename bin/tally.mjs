@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// tally init       set up: what to tally and where the data lives (writes the config)
 // tally            open the panel (q / Esc close, h hides sensitive numbers)
 // tally --once     print the panel once and exit (scripts, shell login)
 // tally --daily    open only if it hasn't been shown today (for a startup hook)
@@ -23,6 +24,7 @@ if (cmd === 'help' || flag('--help') || flag('-h')) {
 }
 
 const path = configPath(process.argv)
+if (cmd === 'init') { const { init } = await import('../src/init.mjs'); await init(path); process.exit(0) }
 let cfg
 try { cfg = loadConfig(path) } catch (e) { console.error(e.message); process.exit(1) }
 const now = process.env.TALLY_NOW ? new Date(process.env.TALLY_NOW) : new Date()

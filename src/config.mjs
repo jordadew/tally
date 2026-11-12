@@ -18,7 +18,7 @@ export const stateDir = () => join(process.env.XDG_STATE_HOME || join(HOME, '.lo
 const LAYOUTS = ['strip', 'rows', 'pair', 'progress', 'list']
 
 export function loadConfig(path) {
-  if (!existsSync(path)) throw new Error(`No config at ${path}. Run "tally init", or copy one from examples/.`)
+  if (!existsSync(path)) throw new Error(`No config at ${path}. Run "tally init" (or the /tally-setup skill in Claude Code), or copy one from examples/.`)
   const cfg = JSON.parse(readFileSync(path, 'utf8'))
   const problems = checkConfig(cfg)
   if (problems.length) throw new Error(`Config problems in ${path}:\n  - ${problems.join('\n  - ')}`)
