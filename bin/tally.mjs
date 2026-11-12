@@ -19,7 +19,8 @@ const flag = f => argv.includes(f)
 const opt = f => { const i = argv.indexOf(f); return i > -1 ? argv[i + 1] : undefined }
 
 if (cmd === 'help' || flag('--help') || flag('-h')) {
-  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter(l => l.startsWith('// ')).map(l => l.slice(3)).join('\n'))
+  const head = readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1)
+  console.log(head.slice(0, head.findIndex(l => !l.startsWith('// '))).map(l => l.slice(3)).join('\n'))
   process.exit(0)
 }
 
