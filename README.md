@@ -1,6 +1,6 @@
 # Tally
 
-**A terminal scoreboard for the numbers that move you.** Tally counts what's already in your data (notes, log files, repos, APIs, any command) and shows it in one panel: what you've earned this month, what you made today, how long since you last posted, what to do next.
+**A terminal scoreboard for the numbers that move you.** Tally counts what's already in your data (notes, log files, repos, APIs, any command) and shows it in one panel: what you've invoiced this month, what you shipped today, how long since a client heard from you, what to do next.
 
 It never stores or edits anything. It only counts.
 
@@ -11,24 +11,24 @@ It never stores or edits anything. It only counts.
            ██║   ██╔══██║██║     ██║       ╚██╔╝
            ██║   ██║  ██║███████╗███████╗   ██║
            ╚═╝   ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝
-                   thursday 12 november
-  ╭─ Earned In November ───────────────────────────────╮
-  │ $735 of $3,000                                 24% │
-  │ ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │
+                    thursday 19 march
+  ╭─ Invoiced In March ────────────────────────────────╮
+  │ $5,200 of $8,000                               65% │
+  │ ████████████████████████████████░░░░░░░░░░░░░░░░░░ │
   ╰────────────────────────────────────────────────────╯
   ╭─ ▶ Today ─────────╮ ╭─ ▶ This Week ────────────────╮
-  │ ✓ planned       1 │ │ planned                    3 │
-  │ ✓ filmed        1 │ │ filmed                     1 │
-  │ ○ posted        0 │ │ posted                     0 │
-  │                   │ │ since post                4d │
+  │ ✓ drafted       1 │ │ drafted                    2 │
+  │ ○ delivered     0 │ │ delivered                  1 │
+  │ ○ invoiced      0 │ │ invoiced                   1 │
+  │                   │ │ since delivery            1d │
   ╰───────────────────╯ ╰──────────────────────────────╯
-  ╭─ Deals ────────────────────────────────────────────╮
-  │      3         $1,350         1          today     │
-  │     open      on table    sent today     idle      │
+  ╭─ Clients ──────────────────────────────────────────╮
+  │      3         $3,700         1          today     │
+  │  quotes out    quoted     sent today     idle      │
   ╰────────────────────────────────────────────────────╯
   ╭─ Next ─────────────────────────────────────────────╮
-  │ → Finish Morning routine                           │
-  │ → Reply to Northwind                               │
+  │ → Deliver Acme logo refresh                        │
+  │ → Chase Initech                                    │
   ╰────────────────────────────────────────────────────╯
   q close · h hide
 ```
@@ -51,7 +51,7 @@ Try it on made-up data first:
 
 ```sh
 node examples/demo/make.mjs
-tally --config examples/creator.json
+tally --config examples/freelancer.json
 ```
 
 ## Set up
@@ -71,8 +71,8 @@ Then in Claude Code: `/tally-setup`.
 **No data anywhere yet?** Tally only counts, so it needs a home for the data. The simplest is a markdown log you add a line to, which `tally init` can create for you:
 
 ```
-- 2026-11-12 Replied to Northwind
-- 2026-11-12 650 Brand B
+- 2026-03-19 Chased Initech
+- 2026-03-19 1000 Initech
 ```
 
 ## Commands
@@ -95,17 +95,17 @@ Options: `--config <path>` (or `$TALLY_CONFIG`), `--close-key <letter>` (ctrl+le
   "title": "TALLY",
   "currency": "$",
   "weekStart": "monday",
-  "sections": [ { "title": "Earned in {month}", "layout": "progress", "metric": "earned", "target": 3000 } ],
+  "sections": [ { "title": "Invoiced in {month}", "layout": "progress", "metric": "invoiced", "target": 8000 } ],
   "metrics": {
-    "earned": {
-      "label": "earned", "format": "money", "sensitive": true,
-      "source": { "type": "file", "path": "~/notes/income.csv", "pattern": "^(?<date>[\\d-]+),[^,]*,(?<amount>[\\d.]+)$", "window": "month", "measure": "sum", "field": "amount" }
+    "invoiced": {
+      "label": "invoiced", "format": "money", "sensitive": true,
+      "source": { "type": "file", "path": "~/notes/invoices.csv", "pattern": "^(?<date>[\\d-]+),[^,]*,(?<amount>[\\d.]+)$", "window": "month", "measure": "sum", "field": "amount" }
     }
   }
 }
 ```
 
-Paths can start with `~`; relative paths are relative to the config file. [`examples/creator.json`](examples/creator.json) uses every feature.
+Paths can start with `~`; relative paths are relative to the config file. [`examples/freelancer.json`](examples/freelancer.json) uses every feature.
 
 ### Top level
 
@@ -148,7 +148,7 @@ Every section has a `layout`. Titles can use `{month}`, `{weekday}` and `{date}`
 |---|---|---|
 | `folder` | `path`, `ext` (`.md`) | One row per note, from its frontmatter (plus `title` from the filename) |
 | `file` | `path`, `pattern`, `flags` | One row per line matching the regex. Named groups become fields; `(?<date>…)` makes windows work |
-| `json` | `path`, `key` | A value at `key` (e.g. `deals[0].offer`), or an array to count |
+| `json` | `path`, `key` | A value at `key` (e.g. `quotes[0].amount`), or an array to count |
 | `http` | `url`, `headers`, `key`, `envFile`, `timeout` | A JSON API. Use `${ENV_VAR}` in `url` and `headers`; keys never go in the config |
 | `git` | `repo`, `author`, `path` | One row per commit |
 | `command` | `run`, `parse` (`number`, `lines`, `text`, `json`), `key`, `envFile`, `timeout` | Anything with a CLI |
@@ -161,7 +161,7 @@ Rows from `folder`, `file`, `json`, `http` and `git` are narrowed and measured w
 | `date` | Which field holds the date (`mtime` = file changed, for `folder`) |
 | `window` | `today`, `week`, `month` (needs `date`) |
 | `measure` | `count` (default), `sum` (with `field`), `days_since`, `latest`, `first` (with `field`, `sort`) |
-| `sort` | For `first`: `{ "field": "status", "order": "desc" }`, or `"rank": ["filmed", "planned"]` for a custom order |
+| `sort` | For `first`: `{ "field": "status", "order": "desc" }`, or `"rank": ["drafted", "briefed"]` for a custom order |
 
 ## Put it where you work
 

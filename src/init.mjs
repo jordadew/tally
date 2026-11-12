@@ -59,7 +59,7 @@ export async function init(path) {
 
     if (kind === 'none') {
       const file = expand(`~/tally/${area.id}.md`)
-      console.log(`\nTally needs somewhere to count from. The simplest is a plain log, one line per item:\n\n  - ${now.toISOString().slice(0, 10)} ${area.money ? '650 Brand B' : 'what you did'}\n\nAny notes app or editor can add to it.`)
+      console.log(`\nTally needs somewhere to count from. The simplest is a plain log, one line per item:\n\n  - ${now.toISOString().slice(0, 10)} ${area.money ? '1000 Initech' : 'what you did'}\n\nAny notes app or editor can add to it.`)
       if ((await ask(`Create ${file} with that format? (Y/n)`, 'y')).toLowerCase() !== 'y') continue
       if (!existsSync(file)) { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, `# ${area.name}\n\n<!-- One line per item: - YYYY-MM-DD ${area.money ? 'amount note' : 'note'} -->\n`) }
       const pattern = area.money ? '^- (?<date>\\d{4}-\\d{2}-\\d{2}) (?<amount>[\\d.]+)' : '^- (?<date>\\d{4}-\\d{2}-\\d{2}) '

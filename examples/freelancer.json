@@ -1,0 +1,55 @@
+{
+  "title": "TALLY",
+  "currency": "$",
+  "weekStart": "monday",
+  "sections": [
+    { "title": "Invoiced in {month}", "layout": "progress", "metric": "invoiced", "target": 8000 },
+    {
+      "layout": "pair",
+      "left": { "title": "▶ Today", "ticks": true, "metrics": ["drafted_today", "delivered_today", "invoiced_today"] },
+      "right": { "title": "▶ This week", "metrics": ["drafted_week", "delivered_week", "invoiced_week", "since_delivery"] }
+    },
+    { "title": "Clients", "layout": "strip", "metrics": ["open_quotes", "quoted", "chased_today", "since_chase"] },
+    { "title": "Next", "layout": "list", "metrics": ["next_job", "next_client"] }
+  ],
+  "metrics": {
+    "invoiced": {
+      "label": "invoiced", "format": "money", "sensitive": true,
+      "source": { "type": "file", "path": "demo/invoices.csv", "pattern": "^(?<date>\\d{4}-\\d{2}-\\d{2}),(?<client>[^,]*),(?<amount>[\\d.]+)$", "window": "month", "measure": "sum", "field": "amount" }
+    },
+    "drafted_today":   { "label": "drafted",   "tone": { "green": "> 0" }, "source": { "type": "folder", "path": "demo/jobs", "date": "drafted_at", "window": "today" } },
+    "delivered_today": { "label": "delivered", "tone": { "green": "> 0" }, "source": { "type": "folder", "path": "demo/jobs", "date": "delivered_at", "window": "today" } },
+    "invoiced_today":  { "label": "invoiced",  "tone": { "green": "> 0" }, "source": { "type": "folder", "path": "demo/jobs", "date": "invoiced_at", "window": "today" } },
+    "drafted_week":    { "label": "drafted",   "source": { "type": "folder", "path": "demo/jobs", "date": "drafted_at", "window": "week" } },
+    "delivered_week":  { "label": "delivered", "source": { "type": "folder", "path": "demo/jobs", "date": "delivered_at", "window": "week" } },
+    "invoiced_week":   { "label": "invoiced",  "source": { "type": "folder", "path": "demo/jobs", "date": "invoiced_at", "window": "week" } },
+    "since_delivery": {
+      "label": "since delivery", "format": "days", "tone": { "red": ">= 7", "amber": ">= 3", "green": ">= 0" },
+      "source": { "type": "folder", "path": "demo/jobs", "date": "delivered_at", "measure": "days_since" }
+    },
+    "open_quotes": {
+      "label": "quotes out", "tone": { "amber": "> 0" },
+      "source": { "type": "json", "path": "demo/quotes.json", "key": "quotes", "where": { "status": "open" } }
+    },
+    "quoted": {
+      "label": "quoted", "format": "money", "sensitive": true, "tone": { "green": "> 0" },
+      "source": { "type": "json", "path": "demo/quotes.json", "key": "quotes", "where": { "status": "open" }, "measure": "sum", "field": "amount" }
+    },
+    "chased_today": {
+      "label": "sent today", "tone": { "green": "> 0" },
+      "source": { "type": "file", "path": "demo/chased.md", "pattern": "^- (?<date>\\d{4}-\\d{2}-\\d{2}) ", "window": "today" }
+    },
+    "since_chase": {
+      "label": "idle", "format": "days", "tone": { "red": ">= 5", "amber": ">= 2", "green": ">= 0" },
+      "source": { "type": "file", "path": "demo/chased.md", "pattern": "^- (?<date>\\d{4}-\\d{2}-\\d{2}) ", "measure": "days_since" }
+    },
+    "next_job": {
+      "label": "next job", "template": "Deliver {value}", "empty": "Nothing in progress.",
+      "source": { "type": "folder", "path": "demo/jobs", "where": { "status": ["briefed", "drafted"] }, "measure": "first", "field": "title", "sort": { "field": "status", "rank": ["drafted", "briefed"] } }
+    },
+    "next_client": {
+      "label": "next client", "template": "Chase {value}", "sensitive": true, "empty": "Quotes clear.",
+      "source": { "type": "json", "path": "demo/quotes.json", "key": "quotes", "where": { "status": "open" }, "measure": "first", "field": "client", "sort": { "field": "last_contact" } }
+    }
+  }
+}

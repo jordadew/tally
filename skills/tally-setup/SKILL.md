@@ -7,7 +7,7 @@ description: Guided setup for Tally, the terminal scoreboard. Finds out what the
 
 Tally counts what already exists in someone's data (notes, files, repos, APIs, any command) and shows it in one terminal panel. It never stores or edits data. Your job: help them choose a **few numbers that change what they do**, wire each to a source they already have, and pick a layout they like. Then write `~/.config/tally/config.json` (or the path from `$TALLY_CONFIG`).
 
-Read `examples/creator.json` in the Tally repo before writing any config: it shows every source type, measure, tone rule and layout in use. The config schema is in the README.
+Read `examples/freelancer.json` in the Tally repo before writing any config: it shows every source type, measure, tone rule and layout in use. The config schema is in the README.
 
 ## How to run it
 
@@ -45,7 +45,7 @@ Brainstorm candidates per area, then score each one in a table against four test
 
 1. **Can they move it today** by their own action? (Not views, followers, inbound leads.)
 2. **Does it point at an action?** (A running total since forever doesn't.)
-3. **Is the data reliable?** Check the actual field or file; say if it's partial (e.g. "only 16 of 156 deals have a price").
+3. **Is the data reliable?** Check the actual field or file; say if it's partial (e.g. "only 12 of 80 invoices have a client name").
 4. **Not shown elsewhere** on the panel already.
 
 Keep the ones that pass, at most four per section, and explain each cut in one line. Patterns that work:
