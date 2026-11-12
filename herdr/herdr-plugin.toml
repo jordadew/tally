@@ -1,0 +1,24 @@
+# Tally as a herdr popup.
+# Install:  herdr plugin install jordadew/tally/herdr
+# Bind a key in ~/.config/herdr/config.toml (see the README), e.g. prefix+$ or ctrl+t.
+id = "tally"
+name = "Tally"
+version = "0.1.0"
+min_herdr_version = "0.8.2"
+description = "Terminal scoreboard: counts what's already in your notes, files, repos and APIs"
+platforms = ["linux", "macos"]
+
+[[actions]]
+id = "open"
+title = "Tally"
+contexts = ["workspace", "global"]
+command = ["herdr", "plugin", "pane", "open", "--plugin", "tally", "--entrypoint", "panel"]
+
+[[panes]]
+id = "panel"
+title = "Tally"
+placement = "popup"
+width = 62
+height = 36
+# A popup receives every key, so ctrl+t closes it too when ctrl+t is the key that opens it.
+command = ["node", "../bin/tally.mjs", "--close-key", "t"]
