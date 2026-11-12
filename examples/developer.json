@@ -1,0 +1,20 @@
+{
+  "title": "TALLY",
+  "sections": [
+    { "title": "Shipping", "layout": "strip", "metrics": ["commits_today", "commits_week", "since_commit", "open_prs"] },
+    { "title": "Next", "layout": "list", "metrics": ["oldest_pr"] }
+  ],
+  "metrics": {
+    "commits_today": { "label": "today", "tone": { "green": "> 0" }, "source": { "type": "git", "repo": "..", "window": "today" } },
+    "commits_week":  { "label": "this week", "source": { "type": "git", "repo": "..", "window": "week" } },
+    "since_commit":  { "label": "since commit", "format": "days", "tone": { "red": ">= 3", "amber": ">= 1", "green": ">= 0" }, "source": { "type": "git", "repo": "..", "measure": "days_since" } },
+    "open_prs": {
+      "label": "open PRs", "tone": { "amber": "> 3" },
+      "source": { "type": "command", "run": "gh pr list --state open --json number --jq length" }
+    },
+    "oldest_pr": {
+      "label": "oldest PR", "template": "Review {value}", "empty": "No open PRs.",
+      "source": { "type": "command", "parse": "lines", "run": "gh pr list --state open --json title --jq 'sort_by(.createdAt) | .[0].title // empty'" }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+node_modules/
+# examples/demo/make.mjs writes these, dated relative to today
+examples/demo/posts/
+examples/demo/*.csv
+examples/demo/*.json
+examples/demo/*.md

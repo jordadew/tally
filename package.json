@@ -1,0 +1,10 @@
+{
+  "name": "tally",
+  "version": "0.1.0",
+  "description": "A terminal scoreboard that counts what's already in your data: notes, files, repos, APIs, any command.",
+  "type": "module",
+  "bin": { "tally": "bin/tally.mjs" },
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test" },
+  "license": "MIT"
+}
