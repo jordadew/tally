@@ -21,6 +21,28 @@ const DONE = [
   ['███████╗', '██╔════╝', '█████╗  ', '██╔══╝  ', '███████╗', '╚══════╝'],
 ]
 const DONE_W = DONE.reduce((w, L) => w + L[0].length, 0)
+// How DONE leaves: from 2.0s after d, over 0.6s, the letters
+// break into green dots that drift up and fade, echoing the burst. e = seconds into the exit.
+const EXIT = 2.0, LEN = 0.6
+function sparkleOut(cv, e, cells) {
+  if (e < 0) return false
+  const k = smooth(e / LEN)
+  cells.forEach((c, i) => {
+    if (rnd(i, 7) > k) cv.put(c.x, c.y, c.ch, `${B}${rgb(scale(GN, 1 - k * 0.6))}`)
+    else {
+      const age = e - LEN * rnd(i, 7)
+      for (let d = 0; d < 2; d++) cv.dot(c.x * 2 + d + (rnd(i, d) - 0.5) * 6 * age, c.y * 4 + 1 - age * 18 - d * 2, Math.max(0, 0.9 - age * 1.6), GREEN)
+    }
+  })
+  return true
+}
+
+// DONE's settled characters, for an exit animation: { x, y, ch, i (letter) }.
+export function doneCells(x, y) {
+  const out = []
+  DONE.forEach((L, i) => { L.forEach((row, r) => [...row].forEach((ch, j) => { if (ch !== ' ') out.push({ x: x + j, y: y + r, ch, i }) })); x += L[0].length })
+  return out
+}
 function stampDone(cv, x, y, t, step = 0.08) {
   DONE.forEach((L, i) => {
     const s = t - i * step
@@ -54,7 +76,7 @@ function burst(cv, u, cx, cy) {
 // One frame of the done screen. W × H = the popup; prompt = the prompt's lines (upper case) and top = the
 // row its first line starts on, both as the page drew them (a second line sits 4 rows below the first).
 // Returns the canvas lines plus kf, how much of the rest of the page (count, snoozes, keys) still shows.
-export function doneFrame(s, { W, H, prompt, top }) {
+export function doneFrame(s, { W, H, prompt, top, exit }) {
   const cv = new Canvas(W, H)
   const p = s < 0 ? 0 : ease(s / 0.5)
   // The prompt glides from where the page had it to the middle of the popup while the rest of the page
@@ -74,6 +96,9 @@ export function doneFrame(s, { W, H, prompt, top }) {
       if ((j < 0 ? p > 0 : p > 0.98) && fadeAt(j, 1) > 0) cv.put(x0 + j, y0 + 1, '━', `${B}${rgb(scale(GN, fadeAt(j, 1)))}`)
   })
   if (s >= 0.55 && s < 1.6) burst(cv, s - 0.55, W, (mid + span / 2) * 4)
-  if (s >= 0.9) stampDone(cv, Math.floor((W - DONE_W) / 2), Math.floor((H - 6) / 2), s - 0.9)
+  const dx = Math.floor((W - DONE_W) / 2), dy = Math.floor((H - 6) / 2)
+  // exit(cv, s, cells) may draw DONE leaving (cells = its settled characters); false = not yet
+  const leave = exit ?? ((c, t, cells) => sparkleOut(c, t - EXIT, cells))
+  if (s >= 0.9 && !leave(cv, s, doneCells(dx, dy))) stampDone(cv, dx, dy, s - 0.9)
   return { lines: cv.lines(), kf: 1 - smooth(s / 0.35), at }
 }
