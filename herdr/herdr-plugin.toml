@@ -5,7 +5,7 @@ id = "tally"
 name = "Tally"
 version = "0.1.0"
 min_herdr_version = "0.8.2"
-description = "Terminal scoreboard: counts what's already in your notes, files, repos and APIs"
+description = "Terminal scoreboard that counts what's already in your notes, files, repos and APIs, plus Spur, a nudge that pops up while you work until today's one thing is done"
 platforms = ["linux", "macos"]
 
 [[actions]]
