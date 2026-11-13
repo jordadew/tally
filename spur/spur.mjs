@@ -2,6 +2,7 @@
 // tally spur test     the same popup, recording nothing; q closes
 // tally spur check    decide whether this moment should open Spur (--why prints the reason; --dry writes nothing)
 // tally spur focus "SHIP THE APP"   set the prompt (checked against the rules in font.mjs)
+// tally spur setup    settings, one question per screen, then a status screen (--edit goes straight to the questions)
 // tally spur sounds   fetch the sounds from their sources and build them here (needs ffmpeg)
 // tally spur install  add the Claude Code prompt hook that runs check (uninstall removes it)
 // SPUR_FRAME=<s> [SPUR_DONE=<s>] tally spur test   print one frame and exit
@@ -58,6 +59,9 @@ export async function run({ cmd, argv, cfg, path, ctx }) {
     console.log(`Spur prompt: ${prompt}\n${promptLines(prompt).flatMap(block).join('\n')}`)
     return
   }
+
+  // ---------------------------------------------------------------- setup
+  if (cmd === 'setup') { const { setup } = await import('./setup.mjs'); await setup({ cfg, path, ctx, argv }); return }
 
   // ---------------------------------------------------------------- sounds, install
   if (cmd === 'sounds') {

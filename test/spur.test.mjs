@@ -92,3 +92,11 @@ test('sound recipe: every part and mix points at a known source', async () => {
   const { DONE_SOUNDS } = await import('../spur/state.mjs')
   for (const [id] of DONE_SOUNDS) assert.match(src, new RegExp(`'${id}'`))
 })
+
+test('tally init can add Spur, checking the wording', async () => {
+  const { writeFileSync, readFileSync, mkdtempSync: mk } = await import('node:fs')
+  const d = mk(join(tmpdir(), 'init-'))
+  writeFileSync(join(d, 'log.md'), `- ${new Date().toISOString().slice(0, 10)} did it\n`)
+  execFileSync('node', ['bin/tally.mjs', 'init', '--config', join(d, 'c.json')], { input: `4\n2\n${join(d, 'log.md')}\ny\nship it!\nship the app\n1\n`, cwd: new URL('..', import.meta.url).pathname })
+  assert.deepEqual(JSON.parse(readFileSync(join(d, 'c.json'), 'utf8')).spur, { prompt: 'SHIP THE APP', done: 'code_today', since: 'code_since' })
+})

@@ -16,5 +16,6 @@
       "label": "oldest PR", "template": "Review {value}", "empty": "No open PRs.",
       "source": { "type": "command", "parse": "lines", "run": "gh pr list --state open --json title --jq 'sort_by(.createdAt) | .[0].title // empty'" }
     }
-  }
+  },
+  "spur": { "prompt": "SHIP SOMETHING", "done": "commits_today", "since": "since_commit" }
 }

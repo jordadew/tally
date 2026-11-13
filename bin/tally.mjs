@@ -45,7 +45,7 @@ if (cmd === 'spur') {
   }
   const { run } = await import('../spur/spur.mjs')
   await run({ cmd: sub, argv, cfg, path, ctx })
-  if (sub !== 'open' && sub !== 'test') process.exit(0)
+  if (!['open', 'test', 'setup'].includes(sub)) process.exit(0)
   await new Promise(() => {}) // the popup runs until it quits itself
 }
 

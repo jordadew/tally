@@ -1,6 +1,6 @@
 ---
 name: tally-setup
-description: Guided setup for Tally, the terminal scoreboard. Finds out what the person wants to be pushed toward, where their data already lives, which numbers are worth showing, then prototypes layouts and writes the config. Use when someone says "set up tally", "/tally-setup", "configure tally", "what should my tally show", or wants to add, remove or rethink metrics or layout in an existing Tally config.
+description: Guided setup for Tally, the terminal scoreboard, and Spur, its nudge. Finds out what the person wants to be pushed toward, where their data already lives, which numbers are worth showing, then prototypes layouts and writes the config; for Spur, works out the one thing to be kept accountable for and words it. Use when someone says "set up tally", "/tally-setup", "/tally-setup spur", "configure tally", "set up spur", "what should my tally show", or wants to add, remove or rethink metrics, layout or Spur's focus in an existing Tally config.
 ---
 
 # Tally setup
@@ -78,6 +78,21 @@ If they want something the built-in layouts can't show, say so plainly rather th
 ## 7. Open it
 
 `tally` opens the panel (`q` closes, `h` hides sensitive numbers). Offer the integrations in the README: a popup key in herdr or tmux, and `tally --daily` in a shell or Claude Code startup hook so it opens once a day.
+
+## 8. Spur (optional; `/tally-setup spur` starts here)
+
+Spur pops up while they work in Claude Code (inside herdr or tmux) until today's one thing is done, then leaves them alone. Its page shows that thing in big letters, e.g. SHIP THE APP. Offer it after step 7, or go straight here when invoked with `spur`. Keep it short: 3–5 exchanges, one question at a time; don't explain Spur back to them.
+
+1. **Biggest lever.** Ask what one thing, done most days, would move their life or work forward the most right now. If they're unsure, ask what they keep putting off that they know matters.
+2. **Sharpen.** Only if needed, one or two follow-ups to make it a daily action they can finish and call done (not a goal, a mood or an identity). "Grow my business" → what action, done today, grows it?
+3. **Offer 2–3 wordings** as a numbered list, best first, and let them pick, edit one or write their own:
+   - Verb first: SHIP THE APP, SEND PITCHES, GO TO THE GYM, WRITE 500 WORDS.
+   - As short as it can be while still clear.
+   - No I, my, today, daily, try to, focus on, work on. No punctuation.
+   - One action that can be finished in a day (BE CONSISTENT, GET FIT fail).
+4. **Done number.** Find or create a Tally number that's above 0 once it's done today (a `today` window), using steps 3–5's rules; ideally a matching `days_since` number for the "Day N since last done" line. If there's no data for it, say so: they can press `d` on the popup instead.
+5. **Save:** `tally spur focus "<WORDING>"` sets the prompt (it checks the wording fits and prints why if not). Add `"done"` and `"since"` (metric names) to the config's `"spur"` block; run `tally check` and `tally spur check --why --dry`.
+6. **Finish:** offer, with their yes for each: `tally spur sounds` (downloads the sounds from Freesound and Mixkit and builds them; needs ffmpeg), `tally spur install` (adds the Claude Code prompt hook; it shows the change first), and `tally spur test` to see it. `tally spur setup` changes timing, cutoff and sounds later.
 
 ## Changing an existing setup
 

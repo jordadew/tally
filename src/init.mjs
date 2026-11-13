@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path'
 import { expand } from './config.mjs'
 import { readAll, frontmatter } from './sources.mjs'
 import { panel } from './render.mjs'
+import { focusProblem } from '../spur/font.mjs'
 
 const AREAS = [
   { id: 'money', name: 'Money earned', label: 'earned', money: true },
@@ -110,16 +111,29 @@ export async function init(path) {
     const data = await readAll(Object.fromEntries(ids.map(i => [i, metrics[i]])), { now, weekStart: 'monday', base: dirname(path) })
     console.log('Live count:', ids.map(i => `${metrics[i].label} ${data[i].error ? `ERROR (${data[i].error})` : data[i].value == null ? 'none yet' : JSON.stringify(data[i].value)}`).join(' · '))
   }
+  // Spur: an optional nudge that pops up while you work in Claude Code until today's one thing is done.
+  let spur
+  const todays = Object.keys(metrics).filter(i => i.endsWith('_today'))
+  if (todays.length && (await ask('\nAlso set up Spur? It pops up while you work in Claude Code (inside herdr or tmux) until today\'s one thing is done. (y/N)', 'n')).toLowerCase() === 'y') {
+    console.log('\nWhat should it push you toward? Verb first, short and clear: SHIP THE APP, SEND PITCHES, GO TO THE GYM.')
+    let prompt
+    for (;;) { prompt = (await ask('It says:')).toUpperCase(); const p = focusProblem(prompt); if (!p) break; console.log(`  ${p}`) }
+    console.log('Which number says it\'s done for the day (above 0)?')
+    const done = todays[await choose('Pick one:', todays.map(i => metrics[i].label ?? i))]
+    const since = done.replace(/_today$/, '_since')
+    spur = { prompt, done, ...(metrics[since] && { since }) }
+  }
   rl.close()
   if (!sections.length) { console.log('\nNothing to tally yet. Run tally init again once your data has a home.'); return }
 
-  const cfg = { title: 'TALLY', currency: '$', weekStart: 'monday', sections, metrics }
+  const cfg = { title: 'TALLY', currency: '$', weekStart: 'monday', sections, metrics, ...(spur && { spur }) }
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n')
   const data = await readAll(metrics, { now, weekStart: 'monday', base: dirname(path) })
   console.log('\n' + panel({ width: 54, ...cfg }, data, { now, hidden: false, keys: '' }))
   console.log(`\nSaved to ${path}`)
   console.log('Next: "tally preview" to try other layouts per section, "tally check" to see every number, "tally" to open.')
+  if (spur) console.log('Spur: "tally spur sounds" fetches its sounds (needs ffmpeg), "tally spur install" adds the Claude Code hook, "tally spur test" shows it.')
 }
 
 /** Money: this month's total and days since. Anything else: today, this week, days since. */

@@ -39,3 +39,11 @@ placement = "popup"
 width = 62
 height = 24
 command = ["node", "../bin/tally.mjs", "spur", "test"]
+
+[[panes]]
+id = "spur-setup"
+title = "Spur setup"
+placement = "popup"
+width = 62
+height = 30
+command = ["node", "../bin/tally.mjs", "spur", "setup"]
