@@ -23,7 +23,7 @@ export const soundDir = () => join(process.env.XDG_DATA_HOME || join(process.env
 // Sounds come from `tally spur sounds`; until then Spur is silent. afplay on macOS; elsewhere ffplay
 // (part of ffmpeg, which built the sounds).
 let player = null
-function playSound(name) {
+export function playSound(name) {
   const file = join(soundDir(), `${name}.mp3`)
   if (!existsSync(file)) return null
   const [bin, ...args] = process.platform === 'darwin' ? ['afplay'] : ['ffplay', '-nodisp', '-autoexit', '-loglevel', 'quiet']
@@ -36,7 +36,7 @@ function openPopup(path) {
   if (process.env.HERDR_PANE_ID) return spawn('herdr', ['plugin', 'pane', 'open', '--plugin', 'tally', '--entrypoint', 'spur', '--env', `TALLY_CONFIG=${path}`], { detached: true, stdio: 'ignore' }).unref()
   if (process.env.TMUX) return spawn('tmux', ['display-popup', '-E', '-w', '62', '-h', '24', `node '${bin}' spur --config '${path}'`], { detached: true, stdio: 'ignore' }).unref()
 }
-const stopSound = () => { try { player?.kill() } catch {} }
+export const stopSound = () => { try { player?.kill() } catch {} }
 
 // Is the day's thing done, by the config's done metric? false when there's no metric or it errors.
 async function doneByMetric(cfg, s, ctx) {

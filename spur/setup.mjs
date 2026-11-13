@@ -7,6 +7,7 @@ import { dirname } from 'node:path'
 import { settings, store, pastCutoff, isDone, DEFAULTS, DONE_SOUNDS } from './state.mjs'
 import { focusProblem } from './font.mjs'
 import { readMetric } from '../src/sources.mjs'
+import { playSound, stopSound } from './spur.mjs'
 
 const B = '\x1b[1m', R = '\x1b[0m', MIN = 60_000
 const vlen = s => [...s.replace(/\x1b\[[0-9;]*m/g, '')].length
@@ -175,6 +176,7 @@ export async function setup({ cfg, path, ctx, argv }) {
       else if (key === '\x1b[C' || key === '\x1b[D' || key === 'l' || key === 'h') {
         s[f.key] = f.opts[(i + (key === '\x1b[C' || key === 'l' ? 1 : f.opts.length - 1)) % f.opts.length][0]
         if (!String(s.prompt).startsWith('@')) save()
+        if (f.key === 'doneSound') { stopSound(); playSound(`done-${s.doneSound}`) } // hear it as you pick (silent until tally spur sounds)
       } else if (key === '\r' && s.prompt === '@type') { mode = 'type'; typeFrom = 'edit'; typed = '' }
       else if (key === '\r' && s.prompt === '@claude') {
         leave()
