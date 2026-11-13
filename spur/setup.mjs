@@ -129,7 +129,8 @@ export async function setup({ cfg, path, ctx, argv }) {
     screen([
       center(`${TN}${B}╾✺  S P U R${R}`), center(s.on ? `${GN}on${R}` : `${GR}off${R}`), '', '',
       center(nextUp()), '', '',
-      ...(sn.length ? [center(`${AM}${'●'.repeat(sn.length)}${R}`), center(`${AM}Snooze ${sn.length}×${R}`),
+      ...(sn.length ? [center(`${AM}${'●'.repeat(sn.length)}${R}`), center(`${AM}Snooze ${sn.length}×${R}`), '', // a breath before the times
+       
         ...sn.slice(-4).map(x => center(`${GR}${hhmm(x.at)}${R}${x.reason ? `  ${WH}\x1b[3m“${x.reason}”${R}` : ''}`))] : [center(`${GR}No snoozes today${R}`)]),
       '', '',
       ...(s.prompt ? [center(`${GR}pushes you to ${WH}${s.prompt.toLowerCase()}${R}`)] : []),

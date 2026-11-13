@@ -132,7 +132,8 @@ export async function run({ cmd, argv, cfg, path, ctx }) {
     const prompt = promptLines(s.prompt).map(l => block(l).map(r => center(`${WH}${B}${r}${R}`)))
     const lines = [...prompt.flatMap((b, i) => (i ? ['', ...b] : b)), ...(gap ? ['', center(gap)] : [])]
     if (snoozes.length) lines.push('', '',
-      center(`${AM}${'●'.repeat(snoozes.length)}${R}`), center(`${AM}Snooze ${snoozes.length}×${R}`),
+      center(`${AM}${'●'.repeat(snoozes.length)}${R}`), center(`${AM}Snooze ${snoozes.length}×${R}`), '', // a breath before the times
+       
       ...snoozes.slice(-4).map(x => center(`${GR}${hhmm(x.at)}${R}${x.reason ? `  ${WH}\x1b[3m“${x.reason}”${R}` : ''}`)))
     const foot = reason == null
       ? ['', center([['s', 'snooze'], ['d', 'done']].map(([k, l]) => `${WH}${B}${k}${R}  ${GR}${l}${R}`).join('    '))]
