@@ -85,6 +85,9 @@ export async function setup({ cfg, path, ctx, argv }) {
   let timing = null
   const timeShown = () => (timing.length > 2 ? `${timing.slice(0, 2)}:${timing.slice(2)}` : timing)
   const timeOk = () => timing.length === 4 && +timing.slice(0, 2) < 24 && +timing.slice(2) < 60
+  // The time box: what you've typed fills an --:-- mask, the rest stays grey.
+  const timeBox = () => { const d = [...timing, '-', '-', '-', '-'].slice(0, 4).map((c, i) => (i < timing.length ? `${WH}${B}${c}${R}` : `${GR}-${R}`)); return `${d[0]}${d[1]}${timing.length > 2 ? `${WH}${B}:${R}` : `${GR}:${R}`}${d[2]}${d[3]}` }
+  const timeLine = () => sp(Math.floor((PW - 5) / 2) - 2) + `${AM}${B}›${R} ${timeBox()}` // in place of "Custom time", centred like the options
   const timeKey = key => {
     if (/^\d+$/.test(key)) timing = (timing + key).slice(0, 4) // digits can arrive together (paste)
     else if (key === '\x7f') timing = timing.slice(0, -1)
@@ -101,7 +104,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     const rec = v => stp.opts.length > 1 && v === DEFAULTS[stp.key] && (v != null || stp.key === 'cutoff') // no cutoff is the pick
     const body = mode === 'type'
       ? [center(`${WH}${B}${stp.q}${R}`), '', center(`${WH}${typed}${AM}▏${R}`), '', center(focusProblem(typed) && typed ? `${RD}${focusProblem(typed)}${R}` : `${GR}Verb first, short and clear: SHIP THE APP, SEND PITCHES${R}`)]
-      : [center(`${WH}${B}${stp.q}${R}`), '', ...stp.opts.map(([v, l], j) => (v === '@time' && timing != null ? center(`${AM}Custom time${R}  ${WH}${B}${timeShown()}${R}${AM}▏${R}`) : optionLine(PW, l, j === pick, rec(v), { AM, B, R, WH, GR, GN })))]
+      : [center(`${WH}${B}${stp.q}${R}`), '', ...stp.opts.map(([v, l], j) => (v === '@time' && timing != null ? timeLine() : optionLine(PW, l, j === pick, rec(v), { AM, B, R, WH, GR, GN })))]
     screen([center(`${TN}${B}╾✺  S P U R   S E T U P${R}`), center(`${GR}${step + 1} / ${sts.length}${R}`), '', '', ...body, ...(note ? ['', center(`${AM}${note}${R}`)] : [])],
       mode === 'type' ? keyRow([['esc', 'back'], ['enter', 'next']]) : keyRow([['q', s.prompt ? 'back' : 'cancel'], ['↑ ↓', 'choose'], ['enter', step === sts.length - 1 ? 'save' : 'next']]))
   }
@@ -140,7 +143,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     const fs = FIELDS(), w = Math.max(...fs.map(f => f.name.length)) + 3, vw = 26, pad = sp(Math.floor((PW - (2 + w + vw)) / 2))
     const rows = fs.map((f, i) => {
       const v = (f.opts.find(([x]) => x === s[f.key]) ?? f.opts[0])[1]
-      if (i === row && f.key === 'cutoff' && timing != null) return pad + `${AM}${B}›${R} ${WH}${B}${f.name.padEnd(w)}${R}${WH}${B}${timeShown()}${R}${AM}▏${R}`
+      if (i === row && f.key === 'cutoff' && timing != null) return pad + `${AM}${B}›${R} ${WH}${B}${f.name.padEnd(w)}${R}  ${timeBox()}`
       return pad + (i === row ? `${AM}${B}›${R} ${WH}${B}${f.name.padEnd(w)}${R}${AM}‹${R} ${WH}${B}${v}${R} ${AM}›${R}` : `  ${GR}${f.name.padEnd(w)}${R}  ${WH}${v}${R}`)
     })
     const at = fs[row].key === 'prompt' && String(s.prompt).startsWith('@') ? center(`${AM}enter to ${s.prompt === '@type' ? 'type it' : 'start a chat with Claude'}${R}`)
