@@ -70,3 +70,25 @@ test('popup frames: page, then the done screen, and the test popup records nothi
   assert.match(run({ SPUR_DONE: '2' }), /██████╗ {2}██████╗ ███╗/)
   assert.equal(existsSync(join(state, 'tally', 'spur')) ? readdirSync(join(state, 'tally', 'spur')).length : 0, 0)
 })
+
+test('install adds the prompt hook once, keeps other hooks, and uninstall removes only ours', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'claude-'))
+  const { writeFileSync, readFileSync } = await import('node:fs')
+  writeFileSync(join(dir, 'settings.json'), JSON.stringify({ model: 'x', hooks: { UserPromptSubmit: [{ hooks: [{ type: 'command', command: 'echo other' }] }] } }))
+  const cli = (...a) => execFileSync('node', ['bin/tally.mjs', 'spur', ...a, '--yes', '--config', 'examples/freelancer.json'], { env: { ...process.env, CLAUDE_CONFIG_DIR: dir }, cwd: new URL('..', import.meta.url).pathname }).toString()
+  const hooks = () => JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')).hooks.UserPromptSubmit.map(h => h.hooks[0].command)
+  cli('install'); cli('install')
+  assert.equal(hooks().length, 2)
+  assert.match(hooks()[1], /spur\/hook\.sh' '\/.*freelancer\.json'$/) // absolute config path
+  cli('uninstall')
+  assert.deepEqual(hooks(), ['echo other'])
+  assert.equal(JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')).model, 'x')
+})
+
+test('sound recipe: every part and mix points at a known source', async () => {
+  const src = (await import('node:fs')).readFileSync(new URL('../spur/sounds.mjs', import.meta.url), 'utf8')
+  const { SOURCES } = await import('../spur/sounds.mjs')
+  for (const id of [...src.matchAll(/src: '(\w+)'/g)].map(m => m[1])) assert.ok(SOURCES[id], id)
+  const { DONE_SOUNDS } = await import('../spur/state.mjs')
+  for (const [id] of DONE_SOUNDS) assert.match(src, new RegExp(`'${id}'`))
+})

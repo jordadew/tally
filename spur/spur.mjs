@@ -2,6 +2,8 @@
 // tally spur test     the same popup, recording nothing; q closes
 // tally spur check    decide whether this moment should open Spur (--why prints the reason; --dry writes nothing)
 // tally spur focus "SHIP THE APP"   set the prompt (checked against the rules in font.mjs)
+// tally spur sounds   fetch the sounds from their sources and build them here (needs ffmpeg)
+// tally spur install  add the Claude Code prompt hook that runs check (uninstall removes it)
 // SPUR_FRAME=<s> [SPUR_DONE=<s>] tally spur test   print one frame and exit
 import { existsSync, readFileSync, writeFileSync, rmSync, copyFileSync, mkdirSync } from 'node:fs'
 import { spawn } from 'node:child_process'
@@ -17,13 +19,21 @@ const vlen = s => [...s.replace(/\x1b\[[0-9;]*m/g, '')].length
 const sp = n => ' '.repeat(Math.max(0, n))
 export const soundDir = () => join(process.env.XDG_DATA_HOME || join(process.env.HOME, '.local', 'share'), 'tally', 'spur', 'sounds')
 
-// Sounds come from `tally spur sounds`; until then Spur is silent. afplay on macOS, paplay on Linux.
+// Sounds come from `tally spur sounds`; until then Spur is silent. afplay on macOS; elsewhere ffplay
+// (part of ffmpeg, which built the sounds).
 let player = null
 function playSound(name) {
   const file = join(soundDir(), `${name}.mp3`)
   if (!existsSync(file)) return null
-  const bin = process.platform === 'darwin' ? 'afplay' : 'paplay'
-  try { player = spawn(bin, [file], { detached: true, stdio: 'ignore' }); player.on('error', () => {}); player.unref(); return player } catch { return null }
+  const [bin, ...args] = process.platform === 'darwin' ? ['afplay'] : ['ffplay', '-nodisp', '-autoexit', '-loglevel', 'quiet']
+  try { player = spawn(bin, [...args, file], { detached: true, stdio: 'ignore' }); player.on('error', () => {}); player.unref(); return player } catch { return null }
+}
+
+// Open the popup where you are: a herdr plugin pane, or a tmux popup.
+function openPopup(path) {
+  const bin = new URL('../bin/tally.mjs', import.meta.url).pathname
+  if (process.env.HERDR_PANE_ID) return spawn('herdr', ['plugin', 'pane', 'open', '--plugin', 'tally', '--entrypoint', 'spur', '--env', `TALLY_CONFIG=${path}`], { detached: true, stdio: 'ignore' }).unref()
+  if (process.env.TMUX) return spawn('tmux', ['display-popup', '-E', '-w', '62', '-h', '24', `node '${bin}' spur --config '${path}'`], { detached: true, stdio: 'ignore' }).unref()
 }
 const stopSound = () => { try { player?.kill() } catch {} }
 
@@ -49,6 +59,20 @@ export async function run({ cmd, argv, cfg, path, ctx }) {
     return
   }
 
+  // ---------------------------------------------------------------- sounds, install
+  if (cmd === 'sounds') {
+    const { buildSounds } = await import('./sounds.mjs')
+    console.log(`Building Spur's sounds in ${soundDir()} (downloaded from Freesound and Mixkit; credits in spur/CREDITS.md)`)
+    try { await buildSounds(soundDir()) } catch (e) { console.error(e.message); process.exit(1) }
+    console.log('Done. Try them: tally spur test')
+    return
+  }
+  if (cmd === 'install' || cmd === 'uninstall') {
+    const { install } = await import('./install.mjs')
+    await install(path, { remove: cmd === 'uninstall', yes: argv.includes('--yes') })
+    return
+  }
+
   // ---------------------------------------------------------------- check
   if (cmd === 'check') {
     const dry = argv.includes('--dry'), why = r => { if (argv.includes('--why')) console.log(r) }
@@ -56,8 +80,9 @@ export async function run({ cmd, argv, cfg, path, ctx }) {
     if (day.fresh) day = { dayStart: now.toISOString() }
     if (!dry) st.writeNudge({ ...day, lastPrompt: now.toISOString() })
     const r = decide({ now, s, day, open: alive(), doneToday: s.on && s.prompt ? await doneByMetric(cfg, s, ctx) : false })
-    why(r)
-    return r // stage 2 opens the popup when r is 'due'
+    if (r === 'due' && !dry) openPopup(path)
+    why(r === 'due' && !dry ? 'opened' : r)
+    return r
   }
 
   // ---------------------------------------------------------------- popup

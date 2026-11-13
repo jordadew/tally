@@ -22,3 +22,20 @@ width = 62
 height = 36
 # A popup receives every key, so ctrl+t closes it too when ctrl+t is the key that opens it.
 command = ["node", "../bin/tally.mjs", "--close-key", "t"]
+
+# Spur, the nudge: opened by `tally spur check` (the prompt hook) with TALLY_CONFIG set.
+[[panes]]
+id = "spur"
+title = "Spur"
+placement = "popup"
+width = 62
+height = 24
+command = ["node", "../bin/tally.mjs", "spur"]
+
+[[panes]]
+id = "spur-test"
+title = "Spur (test)"
+placement = "popup"
+width = 62
+height = 24
+command = ["node", "../bin/tally.mjs", "spur", "test"]
