@@ -41,6 +41,10 @@ Built for people who live in the terminal and keep drifting into the wrong work.
 - **Spur**, an optional nudge, pops up while you work in Claude Code until today's one thing is done.
 - **No dependencies.** Node 20 or newer.
 
+**Spur** is Tally's nudge: a popup that interrupts your Claude Code sessions until today's one thing is done, then leaves you alone. [More below](#spur).
+
+<p align="center"><img src="docs/spur.gif" alt="Spur: the title animation, the prompt with today's snoozes, then pressing d strikes it through and DONE stamps in" width="640"></p>
+
 ## Install
 
 ```sh
@@ -195,20 +199,10 @@ description = "Tally"
 
 Spur is Tally's nudge. While you work in Claude Code, it pops up (in herdr or tmux) until today's one thing is done, then leaves you alone for the day. The only ways out are to snooze, which it counts, or to get it done.
 
-```
-   █▀▀ █ █ ▀█▀ █▀█   ▀█▀ █ █ █▀▀   ▄▀▄ █▀█ █▀█
-   ▀▀█ █▀█  █  █▀▀    █  █▀█ █▀▀   █▀█ █▀▀ █▀▀
-   ▀▀▀ ▀ ▀ ▀▀▀ ▀      ▀  ▀ ▀ ▀▀▀   ▀ ▀ ▀   ▀
-
-                 Day 4 since last done
-
-                          ●●
-                       Snooze 2×
-                         10:05
-              10:50  “finishing the sync fix”
-
-                 s  snooze    d  done
-```
+<p align="center">
+  <img src="docs/spur-page.png" alt="Spur's page: SHIP THE APP, Day 4 since last done, two snoozes with a reason" width="49%">
+  <img src="docs/spur-done.png" alt="After pressing d: DONE" width="49%">
+</p>
 
 It opens with a short title animation and sound, then shows your prompt. When it's done, the prompt is struck through, bursts, and DONE stamps in.
 
