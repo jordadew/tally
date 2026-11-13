@@ -51,5 +51,6 @@
       "label": "next client", "template": "Chase {value}", "sensitive": true, "empty": "Quotes clear.",
       "source": { "type": "json", "path": "demo/quotes.json", "key": "quotes", "where": { "status": "open" }, "measure": "first", "field": "client", "sort": { "field": "last_contact" } }
     }
-  }
+  },
+  "spur": { "prompt": "DELIVER A JOB", "done": "delivered_today", "since": "since_delivery" }
 }

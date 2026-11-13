@@ -2,6 +2,8 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { focusProblem } from '../spur/font.mjs'
+import { DONE_SOUNDS } from '../spur/state.mjs'
 
 export const HOME = homedir()
 export const expand = p => (p?.startsWith('~') ? join(HOME, p.slice(1)) : p)
@@ -51,5 +53,12 @@ export function checkConfig(cfg) {
       else s.metrics.forEach(id => need(id, where))
     }
   })
+  if (cfg.spur) { // Spur, the nudge (spur/): its prompt fits the popup, its metrics exist
+    const sp = cfg.spur
+    if (sp.prompt != null) { const p = focusProblem(sp.prompt); if (p) out.push(`spur.prompt: ${p}`) }
+    for (const k of ['done', 'since']) if (sp[k] != null) need(sp[k], `spur.${k}`)
+    if (sp.cutoff != null && !/^\d{1,2}:\d{2}$/.test(sp.cutoff)) out.push('spur.cutoff must be "HH:MM" or null')
+    if (sp.doneSound != null && !DONE_SOUNDS.some(([id]) => id === sp.doneSound)) out.push(`spur.doneSound must be one of ${DONE_SOUNDS.map(([id]) => id).join(', ')}`)
+  }
   return out
 }

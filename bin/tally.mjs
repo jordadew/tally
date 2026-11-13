@@ -5,6 +5,7 @@
 // tally --daily    open only if it hasn't been shown today (for a startup hook)
 // tally check      read every metric and print its value or error
 // tally preview    try layouts per section: Tab picks a section, ↑ ↓ changes its layout, w saves
+// tally spur       Spur, the nudge: `tally spur help` for its commands
 // Options: --config <path>  --sample (preview with made-up numbers)  --close-key <letter> (ctrl+letter also closes)
 import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, copyFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -33,6 +34,20 @@ const ctx = { now, weekStart: cfg.weekStart, base: dirname(path) }
 const STATE = stateDir(), key = createHash('sha1').update(path).digest('hex').slice(0, 8)
 const CACHE = join(STATE, `last-${key}.json`), HIDDEN = join(STATE, 'hidden')
 const save = (file, body) => { try { mkdirSync(STATE, { recursive: true }); writeFileSync(file, body) } catch {} }
+
+// ---------------------------------------------------------------- spur
+if (cmd === 'spur') {
+  const sub = argv[1] && !argv[1].startsWith('-') ? argv[1] : 'open'
+  if (sub === 'help') {
+    const head = readFileSync(new URL('../spur/spur.mjs', import.meta.url), 'utf8').split('\n')
+    console.log(head.slice(0, head.findIndex(l => !l.startsWith('// '))).map(l => l.slice(3)).join('\n'))
+    process.exit(0)
+  }
+  const { run } = await import('../spur/spur.mjs')
+  await run({ cmd: sub, argv, cfg, path, ctx })
+  if (sub !== 'open' && sub !== 'test') process.exit(0)
+  await new Promise(() => {}) // the popup runs until it quits itself
+}
 
 // ---------------------------------------------------------------- check
 if (cmd === 'check') {
