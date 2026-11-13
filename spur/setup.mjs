@@ -1,4 +1,5 @@
-// tally spur setup: the first time, Spur's settings one question per screen; after that a status screen
+// tally spur setup: the first time, Spur's settings one question per screen (sound and done sound stay on
+// their defaults); after that a status screen
 // (q back · e edit · t test) and an edit screen with every setting on one page. --edit opens edit, --again setup.
 // Saves into the config's "spur" block (the old config is kept as .bak); mute is a per-machine pref.
 import { readFileSync, writeFileSync, copyFileSync } from 'node:fs'
@@ -52,7 +53,9 @@ export async function setup({ cfg, path, ctx, argv }) {
   // Numbers from the config that can say "done today" (anything but a days count), and "days since" ones.
   const ids = Object.keys(cfg.metrics)
   const daysIds = ids.filter(i => cfg.metrics[i].format === 'days' || cfg.metrics[i].source?.measure === 'days_since')
-  const label = i => `${cfg.metrics[i].label ?? i.replace(/_/g, ' ')}`
+  const label = i => i.replace(/_/g, ' ') // ids say what they count and when (delivered_today); labels repeat
+  // "done" candidates: counts over today, or a command (it can print anything)
+  const todayIds = ids.filter(i => !daysIds.includes(i) && (cfg.metrics[i].source?.window === 'today' || cfg.metrics[i].source?.type === 'command'))
   // Every setting: its setup question and its short name in edit. Setup asks all but the done sound.
   const FIELDS = () => [
     { key: 'on', name: 'Spur', q: 'Spur', opts: [[true, 'On'], [false, 'Off']] },
@@ -60,7 +63,7 @@ export async function setup({ cfg, path, ctx, argv }) {
       ...(s.prompt ? [[s.prompt, cap(s.prompt)]] : []),
       ['@type', 'Type it'], ['@claude', 'Work it out with Claude'],
     ] },
-    { key: 'done', name: 'Done when', q: 'Done for the day when this is above 0', opts: [...ids.filter(i => !daysIds.includes(i)).map(i => [i, label(i)]), [null, 'Nothing: I\'ll press d']] },
+    { key: 'done', name: 'Done when', q: 'Done for the day when this is above 0', opts: [...todayIds.map(i => [i, label(i)]), [null, 'Nothing: I\'ll press d']] },
     { key: 'since', name: 'Day count', q: 'Count the days since', opts: [...daysIds.map(i => [i, label(i)]), [null, 'The last time I pressed d']] },
     { key: 'firstAfter', name: 'First nudge', q: 'First nudge, after your first prompt of the day', opts: [30, 45, 60, 90].map(m => [m, `${m} min`]) },
     { key: 'snooze', name: 'Snooze', q: 'Snooze length', opts: [30, 45, 60].map(m => [m, `${m} min`]) },
@@ -69,7 +72,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     { key: 'muted', name: 'Sound', q: 'Sound', opts: [[false, 'On'], [true, 'Muted']] },
     { key: 'doneSound', name: 'Done sound', q: 'Done sound', opts: DONE_SOUNDS },
   ]
-  const STEPS = () => FIELDS().filter(f => f.key !== 'doneSound')
+  const STEPS = () => FIELDS().filter(f => !['muted', 'doneSound'].includes(f.key)) // sound stays on; edit changes both
   let mode, step = 0, pick = 0, typed = '', note = '', row = 0, typeFrom = 'setup'
   const firstPick = k => Math.max(0, STEPS()[step].opts.findIndex(([v]) => v === s[k]))
   const startSetup = () => { mode = 'setup'; step = 0; pick = firstPick('on') }
@@ -81,7 +84,8 @@ export async function setup({ cfg, path, ctx, argv }) {
   const drawSetup = () => {
     const sts = STEPS(), stp = sts[step]
     const rec = v => stp.opts.length > 1 && v === DEFAULTS[stp.key] && v != null
-    const w = Math.max(...stp.opts.map(([v, l]) => l.length + (rec(v) ? 14 : 0))) + 2, pad = sp(Math.floor((PW - w) / 2))
+    // the options are centred as a block; "(recommended)" hangs off the right of its option
+    const w = Math.max(...stp.opts.map(([, l]) => l.length)) + 2, pad = sp(Math.floor((PW - w) / 2))
     const body = mode === 'type'
       ? [center(`${WH}${B}${stp.q}${R}`), '', center(`${WH}${typed}${AM}▏${R}`), '', center(focusProblem(typed) && typed ? `${RD}${focusProblem(typed)}${R}` : `${GR}Verb first, short and clear: SHIP THE APP, SEND PITCHES${R}`)]
       : [center(`${WH}${B}${stp.q}${R}`), '', ...stp.opts.map(([v, l], j) => pad + (j === pick ? `${AM}${B}›${R} ${WH}${B}${l}${R}` : `  ${GR}${l}${R}`) + (rec(v) ? ` ${GN}(recommended)${R}` : ''))]
