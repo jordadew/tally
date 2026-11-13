@@ -87,7 +87,7 @@ export async function setup({ cfg, path, ctx, argv }) {
   }
   const drawSetup = () => {
     const sts = STEPS(), stp = sts[step]
-    const rec = v => stp.opts.length > 1 && v === DEFAULTS[stp.key] && v != null
+    const rec = v => stp.opts.length > 1 && v === DEFAULTS[stp.key] && (v != null || stp.key === 'cutoff') // no cutoff is the pick
     const body = mode === 'type'
       ? [center(`${WH}${B}${stp.q}${R}`), '', center(`${WH}${typed}${AM}▏${R}`), '', center(focusProblem(typed) && typed ? `${RD}${focusProblem(typed)}${R}` : `${GR}Verb first, short and clear: SHIP THE APP, SEND PITCHES${R}`)]
       : [center(`${WH}${B}${stp.q}${R}`), '', ...stp.opts.map(([v, l], j) => optionLine(PW, l, j === pick, rec(v), { AM, B, R, WH, GR, GN }))]

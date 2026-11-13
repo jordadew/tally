@@ -9,7 +9,7 @@ import { settings, store, decide, pastCutoff, isDone } from '../spur/state.mjs'
 import { checkConfig } from '../src/config.mjs'
 
 const at = s => new Date(s)
-const S = settings({ spur: { prompt: 'SHIP THE APP' } })
+const S = settings({ spur: { prompt: 'SHIP THE APP', cutoff: '21:30' } })
 
 test('prompt: fits the popup, one or two lines, letters only', () => {
   assert.deepEqual(promptLines('ship the app'), ['SHIP THE APP'])

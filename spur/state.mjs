@@ -6,7 +6,7 @@ import { stateDir } from '../src/config.mjs'
 
 export const DEFAULTS = {
   on: true, prompt: null, done: null, since: null,
-  firstAfter: 45, snooze: 45, reasonFrom: 2, cutoff: '21:30', newDayAfter: 5,
+  firstAfter: 45, snooze: 45, reasonFrom: 2, cutoff: null, newDayAfter: 5,
 }
 export const settings = cfg => ({ ...DEFAULTS, ...(cfg.spur ?? {}) })
 
