@@ -126,7 +126,8 @@ export async function run({ cmd, argv, cfg, path, ctx }) {
   const hhmm = d => new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 
   const page = () => {
-    const gap = days == null ? '' : days < 3 ? `${GR}Last done ${days <= 1 ? 'yesterday' : `${days} days ago`}${R}`
+    // done today or yesterday: no line; 2 days: a quiet note; 3+: the red count
+    const gap = days == null || days <= 1 ? '' : days < 3 ? `${GR}Last done ${days} days ago${R}`
       : `${GR}Day ${R}${RD}${B}${days}${R}${GR} since last done${R}`
     const prompt = promptLines(s.prompt).map(l => block(l).map(r => center(`${WH}${B}${r}${R}`)))
     const lines = [...prompt.flatMap((b, i) => (i ? ['', ...b] : b)), ...(gap ? ['', center(gap)] : [])]
