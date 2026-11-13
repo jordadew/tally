@@ -238,7 +238,7 @@ It opens with a short title animation and sound, then shows your prompt. When it
 
 | Command | Does |
 |---|---|
-| `tally spur setup` | Settings, then a status screen (`e` edit, `t` test) |
+| `tally spur setup` | First time: a few questions. After that a status screen; `e` opens edit, every setting on one page (`←` `→` changes it), `t` tests |
 | `tally spur test` | The popup, recording nothing (`q` closes) |
 | `tally spur check --why --dry` | What a prompt would do right now, without changing anything |
 | `tally spur focus "SHIP THE APP"` | Set the prompt |

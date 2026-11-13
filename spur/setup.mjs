@@ -1,4 +1,5 @@
-// tally spur setup: Spur's settings, one question per screen; then a status screen (q back · e edit · t test).
+// tally spur setup: the first time, Spur's settings one question per screen; after that a status screen
+// (q back · e edit · t test) and an edit screen with every setting on one page. --edit opens edit, --again setup.
 // Saves into the config's "spur" block (the old config is kept as .bak); mute is a per-machine pref.
 import { readFileSync, writeFileSync, copyFileSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
@@ -51,22 +52,24 @@ export async function setup({ cfg, path, ctx, argv }) {
   const ids = Object.keys(cfg.metrics)
   const daysIds = ids.filter(i => cfg.metrics[i].format === 'days' || cfg.metrics[i].source?.measure === 'days_since')
   const label = i => `${cfg.metrics[i].label ?? i.replace(/_/g, ' ')}`
-  const STEPS = () => [
-    { key: 'on', q: 'Spur', opts: [[true, 'On'], [false, 'Off']] },
-    { key: 'prompt', q: 'What should it push you toward?', opts: [
+  // Every setting: its setup question and its short name in edit. Setup asks all but the done sound.
+  const FIELDS = () => [
+    { key: 'on', name: 'Spur', q: 'Spur', opts: [[true, 'On'], [false, 'Off']] },
+    { key: 'prompt', name: 'Pushes you to', q: 'What should it push you toward?', opts: [
       ...(s.prompt ? [[s.prompt, cap(s.prompt)]] : []),
       ['@type', 'Type it'], ['@claude', 'Work it out with Claude'],
     ] },
-    { key: 'done', q: 'Done for the day when this is above 0', opts: [...ids.filter(i => !daysIds.includes(i)).map(i => [i, label(i)]), [null, 'Nothing: I\'ll press d']] },
-    { key: 'since', q: 'Count the days since', opts: [...daysIds.map(i => [i, label(i)]), [null, 'The last time I pressed d']] },
-    { key: 'firstAfter', q: 'First nudge, after your first prompt of the day', opts: [30, 45, 60, 90].map(m => [m, `${m} min`]) },
-    { key: 'snooze', q: 'Snooze length', opts: [30, 45, 60].map(m => [m, `${m} min`]) },
-    { key: 'reasonFrom', q: 'Ask for a reason to snooze from', opts: [[1, '1st snooze'], [2, '2nd snooze'], [3, '3rd snooze'], [0, 'Never']] },
-    { key: 'cutoff', q: 'No new nudges after', opts: [['20:00', '20:00'], ['21:30', '21:30'], ['23:00', '23:00'], [null, 'No cutoff']] },
-    { key: 'muted', q: 'Sound', opts: [[false, 'On'], [true, 'Muted']] },
-    { key: 'doneSound', q: 'Done sound', opts: DONE_SOUNDS },
+    { key: 'done', name: 'Done when', q: 'Done for the day when this is above 0', opts: [...ids.filter(i => !daysIds.includes(i)).map(i => [i, label(i)]), [null, 'Nothing: I\'ll press d']] },
+    { key: 'since', name: 'Day count', q: 'Count the days since', opts: [...daysIds.map(i => [i, label(i)]), [null, 'The last time I pressed d']] },
+    { key: 'firstAfter', name: 'First nudge', q: 'First nudge, after your first prompt of the day', opts: [30, 45, 60, 90].map(m => [m, `${m} min`]) },
+    { key: 'snooze', name: 'Snooze', q: 'Snooze length', opts: [30, 45, 60].map(m => [m, `${m} min`]) },
+    { key: 'reasonFrom', name: 'Reason from', q: 'Ask for a reason to snooze from', opts: [[1, '1st snooze'], [2, '2nd snooze'], [3, '3rd snooze'], [0, 'Never']] },
+    { key: 'cutoff', name: 'Quiet after', q: 'No new nudges after', opts: [['20:00', '20:00'], ['21:30', '21:30'], ['23:00', '23:00'], [null, 'No cutoff']] },
+    { key: 'muted', name: 'Sound', q: 'Sound', opts: [[false, 'On'], [true, 'Muted']] },
+    { key: 'doneSound', name: 'Done sound', q: 'Done sound', opts: DONE_SOUNDS },
   ]
-  let mode, step = 0, pick = 0, typed = '', note = ''
+  const STEPS = () => FIELDS().filter(f => f.key !== 'doneSound')
+  let mode, step = 0, pick = 0, typed = '', note = '', row = 0, typeFrom = 'setup'
   const firstPick = k => Math.max(0, STEPS()[step].opts.findIndex(([v]) => v === s[k]))
   const startSetup = () => { mode = 'setup'; step = 0; pick = firstPick('on') }
   const next = () => {
@@ -114,11 +117,22 @@ export async function setup({ cfg, path, ctx, argv }) {
       ...(note ? ['', center(`${AM}${note}${R}`)] : []),
     ], keyRow([['q', 'back'], ['e', 'edit'], ['t', 'test']]))
   }
-  const show = () => (mode === 'status' ? drawStatus() : drawSetup())
+  // Edit: every setting on one screen; ↑ ↓ picks a row, ← → changes it, saved as you go.
+  const drawEdit = () => {
+    const fs = FIELDS(), w = Math.max(...fs.map(f => f.name.length)) + 3, vw = 26, pad = sp(Math.floor((PW - (2 + w + vw)) / 2))
+    const rows = fs.map((f, i) => {
+      const v = (f.opts.find(([x]) => x === s[f.key]) ?? f.opts[0])[1]
+      return pad + (i === row ? `${AM}${B}›${R} ${WH}${B}${f.name.padEnd(w)}${R}${AM}‹${R} ${WH}${B}${v}${R} ${AM}›${R}` : `  ${GR}${f.name.padEnd(w)}${R}  ${WH}${v}${R}`)
+    })
+    const at = fs[row].key === 'prompt' && String(s.prompt).startsWith('@') ? center(`${AM}enter to ${s.prompt === '@type' ? 'type it' : 'start a chat with Claude'}${R}`) : ''
+    screen([center(`${TN}${B}╾✺  S P U R   E D I T${R}`), '', '', ...rows, '', at, ...(note ? ['', center(`${AM}${note}${R}`)] : [])],
+      keyRow([['q', 'back'], ['↑ ↓', 'choose'], ['← →', 'change']]))
+  }
+  const show = () => (mode === 'status' ? drawStatus() : mode === 'edit' ? drawEdit() : drawSetup())
 
   if (s.done && cfg.metrics[s.done]) { try { doneNow = isDone(await readMetric(cfg.metrics[s.done], ctx)) } catch {} }
   process.stdout.write('\x1b[?25l')
-  if (s.prompt && !argv.includes('--edit')) mode = 'status'; else startSetup()
+  if (!s.prompt || argv.includes('--again')) startSetup(); else if (argv.includes('--edit')) mode = 'edit'; else mode = 'status'
   show()
   process.stdin.setRawMode(true); process.stdin.resume()
   process.stdin.on('data', b => {
@@ -126,8 +140,13 @@ export async function setup({ cfg, path, ctx, argv }) {
     if (key === '\x03') quit()
     note = ''
     if (mode === 'type') {
-      if (key === '\x1b') mode = 'setup'
-      else if (key === '\r') { if (typed && !focusProblem(typed)) { s.prompt = typed.trim().replace(/\s+/g, ' ').toUpperCase(); mode = 'setup'; next() } }
+      if (key === '\x1b') { mode = typeFrom; if (typeFrom === 'edit') s.prompt = settings(cfg).prompt }
+      else if (key === '\r') {
+        if (typed && !focusProblem(typed)) {
+          s.prompt = typed.trim().replace(/\s+/g, ' ').toUpperCase(); mode = typeFrom
+          if (typeFrom === 'edit') save(); else next()
+        }
+      }
       else if (key === '\x7f') typed = typed.slice(0, -1)
       else if (key >= ' ' && !key.startsWith('\x1b')) typed = (typed + key).toUpperCase().slice(0, 40)
       return show()
@@ -139,7 +158,7 @@ export async function setup({ cfg, path, ctx, argv }) {
       else if (key === '\x1b[B' || key === 'j') pick = (pick + 1) % stp.opts.length
       else if (key === '\r') {
         const v = stp.opts[pick][0]
-        if (v === '@type') { mode = 'type'; typed = '' }
+        if (v === '@type') { mode = 'type'; typeFrom = 'setup'; typed = '' }
         else if (v === '@claude') {
           if (discuss(dirname(path))) quit()
           note = `Run this in a new terminal: ${CLAUDE}`
@@ -147,8 +166,25 @@ export async function setup({ cfg, path, ctx, argv }) {
       }
       return show()
     }
+    if (mode === 'edit') {
+      const f = FIELDS()[row], i = Math.max(0, f.opts.findIndex(([v]) => v === s[f.key]))
+      const leave = () => { if (String(s.prompt).startsWith('@')) s.prompt = settings(cfg).prompt } // a choice, not a value
+      if (key === 'q' || key === 'Q' || key === '\x1b') { leave(); mode = 'status' }
+      else if (key === '\x1b[A' || key === 'k') { leave(); row = (row + FIELDS().length - 1) % FIELDS().length }
+      else if (key === '\x1b[B' || key === 'j') { leave(); row = (row + 1) % FIELDS().length }
+      else if (key === '\x1b[C' || key === '\x1b[D' || key === 'l' || key === 'h') {
+        s[f.key] = f.opts[(i + (key === '\x1b[C' || key === 'l' ? 1 : f.opts.length - 1)) % f.opts.length][0]
+        if (!String(s.prompt).startsWith('@')) save()
+      } else if (key === '\r' && s.prompt === '@type') { mode = 'type'; typeFrom = 'edit'; typed = '' }
+      else if (key === '\r' && s.prompt === '@claude') {
+        leave()
+        if (discuss(dirname(path))) quit()
+        note = `Run this in a new terminal: ${CLAUDE}`
+      }
+      return show()
+    }
     if (key === 'q' || key === 'Q' || key === '\x1b') quit()
-    if (key === 'e' || key === 'E') startSetup()
+    if (key === 'e' || key === 'E') { mode = 'edit'; row = 0 }
     if (key === 't' || key === 'T') { // the test popup, in this window, then back here
       spawnSync(process.execPath, [new URL('../bin/tally.mjs', import.meta.url).pathname, 'spur', 'test', '--config', path], { stdio: 'inherit' })
       process.stdin.setRawMode(true); process.stdout.write('\x1b[?25l')

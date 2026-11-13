@@ -2,7 +2,7 @@
 // tally spur test     the same popup, recording nothing; q closes
 // tally spur check    decide whether this moment should open Spur (--why prints the reason; --dry writes nothing)
 // tally spur focus "SHIP THE APP"   set the prompt (checked against the rules in font.mjs)
-// tally spur setup    settings, one question per screen, then a status screen (--edit goes straight to the questions)
+// tally spur setup    first time: one question per screen; then status (e edit · t test). --edit opens edit, --again setup
 // tally spur sounds   fetch the sounds from their sources and build them here (needs ffmpeg)
 // tally spur install  add the Claude Code prompt hook that runs check (uninstall removes it)
 // SPUR_FRAME=<s> [SPUR_DONE=<s>] tally spur test   print one frame and exit
