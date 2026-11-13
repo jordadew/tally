@@ -38,6 +38,7 @@ Built for people who live in the terminal and keep drifting into the wrong work.
 - **Your data, your sources.** Folders of markdown notes (Obsidian works), CSV or markdown logs, JSON exports, any JSON API, git repos, or any command that prints a number.
 - **Opens instantly.** The last result shows at once; fresh numbers replace it as they load.
 - **`h` hides money and names** for screen sharing or filming. It's remembered between opens.
+- **Spur**, an optional nudge, pops up while you work in Claude Code until today's one thing is done.
 - **No dependencies.** Node 20 or newer.
 
 ## Install
@@ -85,6 +86,7 @@ Then in Claude Code: `/tally-setup`.
 | `tally check` | Read every number and print its value, or the error, with timing |
 | `tally preview` | Try layouts: `Tab` picks a section, `↑` `↓` changes its layout, `w` saves (old config kept as `.bak`). `--sample` uses made-up numbers |
 | `tally init` | Set up a config with questions |
+| `tally spur` | Spur, the nudge ([below](#spur)) |
 
 Options: `--config <path>` (or `$TALLY_CONFIG`), `--close-key <letter>` (ctrl+letter also closes).
 
@@ -189,9 +191,61 @@ description = "Tally"
 
 **Once a day, automatically:** add `tally --daily` to your `~/.zshrc` or `~/.bashrc` (inside an interactive-shell check), or run it from a Claude Code `SessionStart` hook so it appears the first time you start working. In herdr, have the hook run `herdr plugin pane open --plugin tally --entrypoint panel` instead, after checking that `$HERDR_PANE_ID` is set.
 
+## Spur
+
+Spur is Tally's nudge. While you work in Claude Code, it pops up (in herdr or tmux) until today's one thing is done, then leaves you alone for the day. The only ways out are to snooze, which it counts, or to get it done.
+
+```
+   █▀▀ █ █ ▀█▀ █▀█   ▀█▀ █ █ █▀▀   ▄▀▄ █▀█ █▀█
+   ▀▀█ █▀█  █  █▀▀    █  █▀█ █▀▀   █▀█ █▀▀ █▀▀
+   ▀▀▀ ▀ ▀ ▀▀▀ ▀      ▀  ▀ ▀ ▀▀▀   ▀ ▀ ▀   ▀
+
+                 Day 4 since last done
+
+                          ●●
+                       Snooze 2×
+                         10:05
+              10:50  “finishing the sync fix”
+
+                 s  snooze    d  done
+```
+
+It opens with a short title animation and sound, then shows your prompt. When it's done, the prompt is struck through, bursts, and DONE stamps in.
+
+**What counts as done** is one of your Tally numbers: once it's above 0 today, Spur stops for the day (and an open popup closes itself within a minute). Or press `d`. The "Day N" line comes from a days-since number, or from your last `d`.
+
+```json
+"spur": { "prompt": "SHIP THE APP", "done": "commits_today", "since": "since_commit" }
+```
+
+### Set up
+
+1. **The prompt:** `tally spur setup` (or the last step of `tally init`, or `/tally-setup spur` in Claude Code, which helps you work out the one thing and word it). Verb first, short and clear: SHIP THE APP, SEND PITCHES, GO TO THE GYM.
+2. **Sounds:** `tally spur sounds`. Tally doesn't ship any audio; this downloads each sound from where its author published it (Freesound, Mixkit) and builds Spur's sounds on your machine. Needs [ffmpeg](https://ffmpeg.org) (`brew install ffmpeg`, `sudo apt install ffmpeg`). Credits and licences: [`spur/CREDITS.md`](spur/CREDITS.md).
+3. **The trigger:** `tally spur install` adds a prompt hook to Claude Code's `~/.claude/settings.json`. It shows the change and asks first; `tally spur uninstall` takes it out.
+4. **See it:** `tally spur test`. In herdr, Spur needs the plugin above (`herdr plugin install jordadew/tally/herdr`).
+
+### How it decides
+
+| | |
+|---|---|
+| Work day | Starts at your first prompt after a 5-hour break, so a late night still counts as the day before |
+| First nudge | 45 min after that first prompt |
+| Snooze | `s` snoozes 45 min. From the 2nd snooze of the day it asks why, and lists your reasons back to you |
+| Cutoff | No new nudges after 21:30 (or your own time, or none) |
+| Keys | `s` snooze, `d` done; `m` mutes, `r` replays the intro |
+| Sound | Never 22:00–08:00. Six done sounds to pick from in setup |
+
+| Command | Does |
+|---|---|
+| `tally spur setup` | Settings, then a status screen (`e` edit, `t` test) |
+| `tally spur test` | The popup, recording nothing (`q` closes) |
+| `tally spur check --why --dry` | What a prompt would do right now, without changing anything |
+| `tally spur focus "SHIP THE APP"` | Set the prompt |
+
 ## Privacy
 
-Tally reads local files and the sources you configure, and nothing else. It sends nothing anywhere. The last result is kept in `~/.local/state/tally/` so the next open is instant.
+Tally reads local files and the sources you configure, and nothing else. It sends nothing anywhere. The one download is `tally spur sounds`, which fetches Spur's sounds from Freesound and Mixkit. The last result is kept in `~/.local/state/tally/` so the next open is instant; Spur's snoozes and days live there too.
 
 ## License
 
