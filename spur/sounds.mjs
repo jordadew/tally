@@ -11,8 +11,7 @@ const MK = id => `https://assets.mixkit.co/active_storage/sfx/${id}/${id}-previe
 export const SOURCES = {
   whip: FS(93100, 1386366), spurs: FS(98816, 1386366), yeehaw: FS(439191, 7268008),
   swish: FS(877976, 19512113), pop: FS(458398, 9159316),
-  correct: MK(2870), triad: FS(878602, 19512113), yay: FS(563845, 11121005),
-  chime: FS(878601, 19512113), soft: FS(878249, 19512113), rising: MK(951),
+  correct: MK(2870),
 }
 
 // The cuts. Each is ffmpeg filters on the downloaded clip, then a level: peak (dB) or mean (dB, peak ≤ -1).
@@ -26,18 +25,12 @@ const PARTS = {
   swish: { src: 'swish', af: trim(0.5, 0.2), mean: -23.9 },
   pop: { src: 'pop', af: trim(0.45, 0.18), mean: -23.9 },
   correct: { src: 'correct', af: tail(1.6), mean: -23.9 },
-  triad: { src: 'triad', af: 'silenceremove=start_periods=1:start_threshold=-50dB,atrim=0:2.2,afade=t=out:st=1.9:d=0.3', mean: -23.9 },
-  yay: { src: 'yay', af: 'silenceremove=start_periods=1:start_threshold=-45dB,areverse,silenceremove=start_periods=1:start_threshold=-55dB,areverse,afade=t=out:st=1.81:d=0.6:curve=qsin', mean: -23.9 },
-  chime: { src: 'chime', af: tail(1.6), mean: -23.9 },
-  soft: { src: 'soft', af: tail(1.6), mean: -23.9 },
-  rising: { src: 'rising', af: tail(1.6), mean: -23.9 },
 }
-// The finished sounds: parts at their times (s), then a final pass. done-* = swish at 0, pop at 0.55
-// (the burst), and the named sound at 0.95 as DONE lands.
-const done = name => ({ layers: [['swish', 0], ['pop', 0.55], [name, 0.95]], post: 'alimiter=limit=0.9' })
+// The finished sounds: parts at their times (s), then a final pass. done = a swish as the prompt is
+// struck through, a pop as the confetti bursts (0.55s), the Correct tone as DONE lands (0.95s).
 const OUT = {
   spur: { layers: [['whip', 0], ['spur', 0.61], ['yeehaw', 0.82]], post: 'alimiter=limit=0.89,loudnorm=I=-16:TP=-1.5' },
-  ...Object.fromEntries(['correct', 'triad', 'yay', 'chime', 'soft', 'rising'].map(n => [`done-${n}`, done(n)])),
+  done: { layers: [['swish', 0], ['pop', 0.55], ['correct', 0.95]], post: 'alimiter=limit=0.9' },
 }
 
 const ff = args => execFileSync('ffmpeg', ['-v', 'error', '-y', ...args], { stdio: ['ignore', 'ignore', 'pipe'] })

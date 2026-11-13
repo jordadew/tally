@@ -1,14 +1,12 @@
-// tally spur setup: the first time, Spur's settings one question per screen (sound and done sound stay on
-// their defaults); after that a status screen
+// tally spur setup: the first time, Spur's settings one question per screen (sound stays on); after that a status screen
 // (q back · e edit · t test) and an edit screen with every setting on one page. --edit opens edit, --again setup.
 // Saves into the config's "spur" block (the old config is kept as .bak); mute is a per-machine pref.
 import { readFileSync, writeFileSync, copyFileSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { dirname } from 'node:path'
-import { settings, store, pastCutoff, isDone, DEFAULTS, DONE_SOUNDS } from './state.mjs'
+import { settings, store, pastCutoff, isDone, DEFAULTS } from './state.mjs'
 import { focusProblem } from './font.mjs'
 import { readMetric } from '../src/sources.mjs'
-import { playSound, stopSound } from './spur.mjs'
 
 const B = '\x1b[1m', R = '\x1b[0m', MIN = 60_000
 const vlen = s => [...s.replace(/\x1b\[[0-9;]*m/g, '')].length
@@ -70,9 +68,8 @@ export async function setup({ cfg, path, ctx, argv }) {
     { key: 'reasonFrom', name: 'Reason from', q: 'Ask for a reason to snooze from', opts: [[1, '1st snooze'], [2, '2nd snooze'], [3, '3rd snooze'], [0, 'Never']] },
     { key: 'cutoff', name: 'Quiet after', q: 'No new nudges after', opts: [['20:00', '20:00'], ['21:30', '21:30'], ['23:00', '23:00'], [null, 'No cutoff']] },
     { key: 'muted', name: 'Sound', q: 'Sound', opts: [[false, 'On'], [true, 'Muted']] },
-    { key: 'doneSound', name: 'Done sound', q: 'Done sound', opts: DONE_SOUNDS },
   ]
-  const STEPS = () => FIELDS().filter(f => !['muted', 'doneSound'].includes(f.key)) // sound stays on; edit changes both
+  const STEPS = () => FIELDS().filter(f => f.key !== 'muted') // sound stays on; edit can mute it
   let mode, step = 0, pick = 0, typed = '', note = '', row = 0, typeFrom = 'setup'
   const firstPick = k => Math.max(0, STEPS()[step].opts.findIndex(([v]) => v === s[k]))
   const startSetup = () => { mode = 'setup'; step = 0; pick = firstPick('on') }
@@ -180,7 +177,6 @@ export async function setup({ cfg, path, ctx, argv }) {
       else if (key === '\x1b[C' || key === '\x1b[D' || key === 'l' || key === 'h') {
         s[f.key] = f.opts[(i + (key === '\x1b[C' || key === 'l' ? 1 : f.opts.length - 1)) % f.opts.length][0]
         if (!String(s.prompt).startsWith('@')) save()
-        if (f.key === 'doneSound') { stopSound(); playSound(`done-${s.doneSound}`) } // hear it as you pick (silent until tally spur sounds)
       } else if (key === '\r' && s.prompt === '@type') { mode = 'type'; typeFrom = 'edit'; typed = '' }
       else if (key === '\r' && s.prompt === '@claude') {
         leave()

@@ -13,7 +13,7 @@ import { readMetric } from '../src/sources.mjs'
 import { title, SETTLED } from './art.mjs'
 import { doneFrame } from './done.mjs'
 import { block, promptLines, focusProblem } from './font.mjs'
-import { settings, store, decide, isDone, DEFAULTS, DONE_SOUNDS } from './state.mjs'
+import { settings, store, decide, isDone } from './state.mjs'
 
 const B = '\x1b[1m', R = '\x1b[0m', MIN = 60_000
 const vlen = s => [...s.replace(/\x1b\[[0-9;]*m/g, '')].length
@@ -172,8 +172,7 @@ export async function run({ cmd, argv, cfg, path, ctx }) {
 
   const finish = () => { // done for today: the done screen and sound, remember it, close
     done = true; doneAt = Date.now()
-    const pick = DONE_SOUNDS.some(([id]) => id === s.doneSound) ? s.doneSound : DEFAULTS.doneSound
-    const p = audible() ? (stopSound(), playSound(`done-${pick}`)) : null
+    const p = audible() ? (stopSound(), playSound('done')) : null
     if (!TEST) st.writeNudge({ ...st.readNudge(), done: true })
     clearInterval(watch); clearInterval(anim); anim = setInterval(frame, 33)
     // close once DONE has held (3s) and the sound has ended, whichever is later; 6s at most

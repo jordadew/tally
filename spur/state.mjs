@@ -4,11 +4,9 @@ import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { stateDir } from '../src/config.mjs'
 
-// The done sounds (built by `tally spur sounds`), as setup names them.
-export const DONE_SOUNDS = [['triad', 'Triad'], ['correct', 'Correct'], ['yay', 'Yay'], ['chime', 'Success'], ['soft', 'Chime'], ['rising', 'Rise']]
 export const DEFAULTS = {
   on: true, prompt: null, done: null, since: null,
-  firstAfter: 45, snooze: 45, reasonFrom: 2, cutoff: '21:30', doneSound: 'triad', newDayAfter: 5,
+  firstAfter: 45, snooze: 45, reasonFrom: 2, cutoff: '21:30', newDayAfter: 5,
 }
 export const settings = cfg => ({ ...DEFAULTS, ...(cfg.spur ?? {}) })
 

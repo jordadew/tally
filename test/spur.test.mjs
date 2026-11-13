@@ -56,8 +56,8 @@ test('work day: a 5 hour break starts a new one; snoozes and d are per work day 
 
 test('isDone and config checks', () => {
   assert.equal(isDone(1), true); assert.equal(isDone(0), false); assert.equal(isDone(true), true); assert.equal(isDone(null), false)
-  const problems = checkConfig({ metrics: { a: { source: { type: 'file' } } }, spur: { prompt: 'hi!', done: 'b', doneSound: 'x', cutoff: '9pm' } })
-  assert.equal(problems.length, 4)
+  const problems = checkConfig({ metrics: { a: { source: { type: 'file' } } }, spur: { prompt: 'hi!', done: 'b', cutoff: '9pm' } })
+  assert.equal(problems.length, 3)
   assert.deepEqual(checkConfig({ metrics: { a: { source: { type: 'file' } } }, spur: { prompt: 'SHIP IT', done: 'a' } }), [])
 })
 
@@ -89,8 +89,6 @@ test('sound recipe: every part and mix points at a known source', async () => {
   const src = (await import('node:fs')).readFileSync(new URL('../spur/sounds.mjs', import.meta.url), 'utf8')
   const { SOURCES } = await import('../spur/sounds.mjs')
   for (const id of [...src.matchAll(/src: '(\w+)'/g)].map(m => m[1])) assert.ok(SOURCES[id], id)
-  const { DONE_SOUNDS } = await import('../spur/state.mjs')
-  for (const [id] of DONE_SOUNDS) assert.match(src, new RegExp(`'${id}'`))
 })
 
 test('tally init can add Spur, checking the wording', async () => {

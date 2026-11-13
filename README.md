@@ -234,7 +234,7 @@ It opens with a short title animation and sound, then shows your prompt. When it
 | Snooze | `s` snoozes 45 min. From the 2nd snooze of the day it asks why, and lists your reasons back to you |
 | Cutoff | No new nudges after 21:30 (or your own time, or none) |
 | Keys | `s` snooze, `d` done; `m` mutes, `r` replays the intro |
-| Sound | Never 22:00–08:00. Six done sounds to pick from in setup |
+| Sound | Never 22:00–08:00. `m` mutes, or turn sound off in edit |
 
 | Command | Does |
 |---|---|
