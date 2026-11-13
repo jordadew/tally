@@ -15,6 +15,13 @@ const rgbc = ([r, g, b]) => `\x1b[38;2;${r};${g};${b}m`
 const WH = rgbc([242, 242, 242]), GR = rgbc([150, 150, 150]), AM = rgbc([240, 172, 96]), GN = rgbc([120, 200, 120]), TN = rgbc([214, 168, 112]), RD = rgbc([232, 96, 86])
 const hhmm = d => new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 const cap = t => t[0] + t.slice(1).toLowerCase()
+// One option line, centred on its own label: the › marker sits just left of it and "(recommended)"
+// hangs off the right, so neither moves the label. Labels too wide for the popup are cut with …
+const optionLine = (W, label, on, rec, c) => {
+  const l = [...label].length > W - 20 ? [...label].slice(0, W - 21).join('') + '…' : label
+  const at = Math.max(2, Math.floor((W - [...l].length) / 2))
+  return ' '.repeat(at - 2) + (on ? `${c.AM}${c.B}›${c.R} ${c.WH}${c.B}${l}${c.R}` : `  ${c.GR}${l}${c.R}`) + (rec ? ` ${c.GN}(recommended)${c.R}` : '')
+}
 
 // "Work it out with Claude": a Claude Code session running the /tally-setup skill's Spur part,
 // in a new herdr tab or tmux window. Returns false if neither is here (setup then prints the command).
@@ -81,11 +88,9 @@ export async function setup({ cfg, path, ctx, argv }) {
   const drawSetup = () => {
     const sts = STEPS(), stp = sts[step]
     const rec = v => stp.opts.length > 1 && v === DEFAULTS[stp.key] && v != null
-    // the options are centred as a block; "(recommended)" hangs off the right of its option
-    const w = Math.max(...stp.opts.map(([, l]) => l.length)) + 2, pad = sp(Math.floor((PW - w) / 2))
     const body = mode === 'type'
       ? [center(`${WH}${B}${stp.q}${R}`), '', center(`${WH}${typed}${AM}▏${R}`), '', center(focusProblem(typed) && typed ? `${RD}${focusProblem(typed)}${R}` : `${GR}Verb first, short and clear: SHIP THE APP, SEND PITCHES${R}`)]
-      : [center(`${WH}${B}${stp.q}${R}`), '', ...stp.opts.map(([v, l], j) => pad + (j === pick ? `${AM}${B}›${R} ${WH}${B}${l}${R}` : `  ${GR}${l}${R}`) + (rec(v) ? ` ${GN}(recommended)${R}` : ''))]
+      : [center(`${WH}${B}${stp.q}${R}`), '', ...stp.opts.map(([v, l], j) => optionLine(PW, l, j === pick, rec(v), { AM, B, R, WH, GR, GN }))]
     screen([center(`${TN}${B}╾✺  S P U R   S E T U P${R}`), center(`${GR}${step + 1} / ${sts.length}${R}`), '', '', ...body, ...(note ? ['', center(`${AM}${note}${R}`)] : [])],
       mode === 'type' ? keyRow([['esc', 'back'], ['enter', 'next']]) : keyRow([['q', s.prompt ? 'back' : 'cancel'], ['↑ ↓', 'choose'], ['enter', step === sts.length - 1 ? 'save' : 'next']]))
   }
