@@ -73,11 +73,22 @@ export async function setup({ cfg, path, ctx, argv }) {
     { key: 'firstAfter', name: 'First nudge', q: 'First nudge, after your first prompt of the day', opts: [30, 45, 60, 90].map(m => [m, `${m} min`]) },
     { key: 'snooze', name: 'Snooze', q: 'Snooze length', opts: [30, 45, 60].map(m => [m, `${m} min`]) },
     { key: 'reasonFrom', name: 'Reason from', q: 'Ask for a reason to snooze from', opts: [[1, '1st snooze'], [2, '2nd snooze'], [3, '3rd snooze'], [0, 'Never']] },
-    { key: 'cutoff', name: 'Quiet after', q: 'No new nudges after', opts: [['20:00', '20:00'], ['21:30', '21:30'], ['23:00', '23:00'], [null, 'No cutoff']] },
+    { key: 'cutoff', name: 'Quiet after', q: 'No new nudges after', opts: (() => { // a time you typed shows as its own option
+      const base = ['20:00', '21:30', '23:00'], own = s.cutoff && !base.includes(s.cutoff) && s.cutoff !== '@time'
+      return [...base.map(t => [t, t]), ...(own ? [[s.cutoff, s.cutoff]] : []), ['@time', 'Custom time'], [null, 'No cutoff']]
+    })() },
     { key: 'muted', name: 'Sound', q: 'Sound', opts: [[false, 'On'], [true, 'Muted']] },
   ]
   const STEPS = () => FIELDS().filter(f => f.key !== 'muted') // sound stays on; edit can mute it
   let mode, step = 0, pick = 0, typed = '', note = '', row = 0, typeFrom = 'setup'
+  // Custom time: typed in place, digits only, the colon added for you. timing = the digits, or null.
+  let timing = null
+  const timeShown = () => (timing.length > 2 ? `${timing.slice(0, 2)}:${timing.slice(2)}` : timing)
+  const timeOk = () => timing.length === 4 && +timing.slice(0, 2) < 24 && +timing.slice(2) < 60
+  const timeKey = key => {
+    if (/^\d+$/.test(key)) timing = (timing + key).slice(0, 4) // digits can arrive together (paste)
+    else if (key === '\x7f') timing = timing.slice(0, -1)
+  }
   const firstPick = k => Math.max(0, STEPS()[step].opts.findIndex(([v]) => v === s[k]))
   const startSetup = () => { mode = 'setup'; step = 0; pick = firstPick('on') }
   const next = () => {
@@ -90,7 +101,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     const rec = v => stp.opts.length > 1 && v === DEFAULTS[stp.key] && (v != null || stp.key === 'cutoff') // no cutoff is the pick
     const body = mode === 'type'
       ? [center(`${WH}${B}${stp.q}${R}`), '', center(`${WH}${typed}${AM}▏${R}`), '', center(focusProblem(typed) && typed ? `${RD}${focusProblem(typed)}${R}` : `${GR}Verb first, short and clear: SHIP THE APP, SEND PITCHES${R}`)]
-      : [center(`${WH}${B}${stp.q}${R}`), '', ...stp.opts.map(([v, l], j) => optionLine(PW, l, j === pick, rec(v), { AM, B, R, WH, GR, GN }))]
+      : [center(`${WH}${B}${stp.q}${R}`), '', ...stp.opts.map(([v, l], j) => (v === '@time' && timing != null ? center(`${AM}Custom time${R}  ${WH}${B}${timeShown()}${R}${AM}▏${R}`) : optionLine(PW, l, j === pick, rec(v), { AM, B, R, WH, GR, GN })))]
     screen([center(`${TN}${B}╾✺  S P U R   S E T U P${R}`), center(`${GR}${step + 1} / ${sts.length}${R}`), '', '', ...body, ...(note ? ['', center(`${AM}${note}${R}`)] : [])],
       mode === 'type' ? keyRow([['esc', 'back'], ['enter', 'next']]) : keyRow([['q', s.prompt ? 'back' : 'cancel'], ['↑ ↓', 'choose'], ['enter', step === sts.length - 1 ? 'save' : 'next']]))
   }
@@ -129,9 +140,12 @@ export async function setup({ cfg, path, ctx, argv }) {
     const fs = FIELDS(), w = Math.max(...fs.map(f => f.name.length)) + 3, vw = 26, pad = sp(Math.floor((PW - (2 + w + vw)) / 2))
     const rows = fs.map((f, i) => {
       const v = (f.opts.find(([x]) => x === s[f.key]) ?? f.opts[0])[1]
+      if (i === row && f.key === 'cutoff' && timing != null) return pad + `${AM}${B}›${R} ${WH}${B}${f.name.padEnd(w)}${R}${WH}${B}${timeShown()}${R}${AM}▏${R}`
       return pad + (i === row ? `${AM}${B}›${R} ${WH}${B}${f.name.padEnd(w)}${R}${AM}‹${R} ${WH}${B}${v}${R} ${AM}›${R}` : `  ${GR}${f.name.padEnd(w)}${R}  ${WH}${v}${R}`)
     })
-    const at = fs[row].key === 'prompt' && String(s.prompt).startsWith('@') ? center(`${AM}enter to ${s.prompt === '@type' ? 'type it' : 'start a chat with Claude'}${R}`) : ''
+    const at = fs[row].key === 'prompt' && String(s.prompt).startsWith('@') ? center(`${AM}enter to ${s.prompt === '@type' ? 'type it' : 'start a chat with Claude'}${R}`)
+      : fs[row].key === 'cutoff' && timing != null ? center(`${GR}type a time, e.g. 2215 · enter to save · esc to cancel${R}`)
+      : fs[row].key === 'cutoff' && s.cutoff === '@time' ? center(`${AM}enter to type a time${R}`) : ''
     screen([center(`${TN}${B}╾✺  S P U R   E D I T${R}`), '', '', ...rows, '', at, ...(note ? ['', center(`${AM}${note}${R}`)] : [])],
       keyRow([['q', 'back'], ['↑ ↓', 'choose'], ['← →', 'change']]))
   }
@@ -160,6 +174,13 @@ export async function setup({ cfg, path, ctx, argv }) {
     }
     if (mode === 'setup') {
       const stp = STEPS()[step]
+      if (timing != null) { // typing a custom time on the cutoff step
+        if (key === '\x1b') timing = null
+        else if (key === '\r' && timeOk()) { s.cutoff = timeShown(); timing = null; next() }
+        else timeKey(key)
+        return show()
+      }
+      if (key === '\r' && stp.opts[pick][0] === '@time') { timing = ''; return show() }
       if (key === 'q' || key === 'Q' || key === '\x1b') { if (s.prompt) { s = { ...settings(cfg), muted: st.prefs().muted }; mode = 'status' } else quit() }
       else if (key === '\x1b[A' || key === 'k') pick = (pick + stp.opts.length - 1) % stp.opts.length
       else if (key === '\x1b[B' || key === 'j') pick = (pick + 1) % stp.opts.length
@@ -175,13 +196,24 @@ export async function setup({ cfg, path, ctx, argv }) {
     }
     if (mode === 'edit') {
       const f = FIELDS()[row], i = Math.max(0, f.opts.findIndex(([v]) => v === s[f.key]))
-      const leave = () => { if (String(s.prompt).startsWith('@')) s.prompt = settings(cfg).prompt } // a choice, not a value
+      const leave = () => { // choices, not values
+        if (String(s.prompt).startsWith('@')) s.prompt = settings(cfg).prompt
+        if (s.cutoff === '@time') s.cutoff = settings(cfg).cutoff
+        timing = null
+      }
+      if (timing != null) {
+        if (key === '\x1b') leave()
+        else if (key === '\r' && timeOk()) { s.cutoff = timeShown(); timing = null; save() }
+        else timeKey(key)
+        return show()
+      }
+      if (key === '\r' && f.key === 'cutoff' && s.cutoff === '@time') { timing = ''; return show() }
       if (key === 'q' || key === 'Q' || key === '\x1b') { leave(); mode = 'status' }
       else if (key === '\x1b[A' || key === 'k') { leave(); row = (row + FIELDS().length - 1) % FIELDS().length }
       else if (key === '\x1b[B' || key === 'j') { leave(); row = (row + 1) % FIELDS().length }
       else if (key === '\x1b[C' || key === '\x1b[D' || key === 'l' || key === 'h') {
         s[f.key] = f.opts[(i + (key === '\x1b[C' || key === 'l' ? 1 : f.opts.length - 1)) % f.opts.length][0]
-        if (!String(s.prompt).startsWith('@')) save()
+        if (!String(s.prompt).startsWith('@') && s.cutoff !== '@time') save()
       } else if (key === '\r' && s.prompt === '@type') { mode = 'type'; typeFrom = 'edit'; typed = '' }
       else if (key === '\r' && s.prompt === '@claude') {
         leave()

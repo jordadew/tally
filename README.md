@@ -232,7 +232,7 @@ It opens with a short title animation and sound, then shows your prompt. When it
 | Work day | Starts at your first prompt after a 5-hour break, so a late night still counts as the day before |
 | First nudge | 45 min after that first prompt |
 | Snooze | `s` snoozes 45 min. From the 2nd snooze of the day it asks why, and lists your reasons back to you |
-| Cutoff | None by default; set one in edit (20:00, 21:30 or 23:00) to stop new nudges after it |
+| Cutoff | None by default; pick 20:00, 21:30, 23:00 or type your own time to stop new nudges after it |
 | Keys | `s` snooze, `d` done; `m` mutes, `r` replays the intro |
 | Sound | Never 22:00–08:00. `m` mutes, or turn sound off in edit |
 
