@@ -12,12 +12,13 @@ const B = '\x1b[1m', R = '\x1b[0m', MIN = 60_000
 const vlen = s => [...s.replace(/\x1b\[[0-9;]*m/g, '')].length
 const sp = n => ' '.repeat(Math.max(0, n))
 const rgbc = ([r, g, b]) => `\x1b[38;2;${r};${g};${b}m`
+const U = '\x1b[4m\x1b[58;2;240;172;96m' // amber underline
 const WH = rgbc([242, 242, 242]), GR = rgbc([150, 150, 150]), AM = rgbc([240, 172, 96]), GN = rgbc([120, 200, 120]), TN = rgbc([214, 168, 112]), RD = rgbc([232, 96, 86]), FAINT = rgbc([70, 70, 70])
 const hhmm = d => new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 const cap = t => t[0] + t.slice(1).toLowerCase()
 const eq = (a, b) => (Array.isArray(a) ? sameDays(a, b) : a === b)
-// The week as a strip, Monday first: on days white, off days faint, the day you're on in amber [ ].
-const strip = (days, cur = -1) => DAYS.map(([d, l], i) => { const t = days.includes(d) ? `${WH}${B}${l}${R}` : `${FAINT}${l}${R}`; return i === cur ? `${AM}${B}[${R}${t}${AM}${B}]${R}` : ` ${t} ` }).join('')
+// The week as a strip, Monday first: on days white, off days faint, the day you're on underlined in amber.
+const strip = (days, cur = -1) => DAYS.map(([d, l], i) => { const t = days.includes(d) ? `${WH}${B}${l}${R}` : `${FAINT}${l}${R}`; return i === cur ? ` ${days.includes(d) ? WH + B : FAINT}${U}${l}${R} ` : ` ${t} ` }).join('')
 const flipDay = (days, cur) => { const d = DAYS[cur][0]; return days.includes(d) ? days.filter(x => x !== d) : DAYS.map(([x]) => x).filter(x => x === d || days.includes(x)) }
 const dayStep = (key, cur) => (key === '\x1b[C' || key === 'l' ? (cur + 1) % 7 : key === '\x1b[D' || key === 'h' ? (cur + 6) % 7 : null)
 // One option line, centred on its own label: the › marker sits just left of it and "(recommended)"
