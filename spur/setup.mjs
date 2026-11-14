@@ -94,6 +94,8 @@ export async function setup({ cfg, path, ctx, argv }) {
   let timing = null
   // Days: dayCur = the day you're on; picking = the days being picked on the edit row (null when not); dayWarn = none picked.
   let dayCur = 0, picking = null, dayWarn = false
+  // Setup's days step: dayPick = the option you're on (3 = Pick days, where the strip takes ← → space); dayOwn = the days you picked
+  let dayPick = 0, dayOwn = []
   const timeShown = () => (timing.length > 2 ? `${timing.slice(0, 2)}:${timing.slice(2)}` : timing)
   const timeOk = () => timing.length === 4 && +timing.slice(0, 2) < 24 && +timing.slice(2) < 60
   // The time box: what you've typed fills an --:-- mask, the rest stays grey.
@@ -109,16 +111,16 @@ export async function setup({ cfg, path, ctx, argv }) {
     const steps = STEPS()
     if (step === steps.length - 1 || s.on === false) { save(); mode = 'status'; return }
     step++; dayCur = 0; pick = firstPick(steps[step].key)
+    if (steps[step].key === 'days') { const p = presetOf(s.days); dayPick = p < 0 ? 3 : p; dayOwn = [...s.days] }
   }
   const drawSetup = () => {
     const sts = STEPS(), stp = sts[step]
-    if (stp.key === 'days') { // the presets, with the week under them; editing a day moves the highlight to its preset, or Custom
-      const p = presetOf(s.days)
+    if (stp.key === 'days') { // the presets and Pick days, with the week under them; on Pick days ← → space change it
       return screen([center(`${TN}${B}╾✺  S P U R   S E T U P${R}`), center(`${GR}${step + 1} / ${sts.length}${R}`), '', '',
         center(`${WH}${B}${stp.q}${R}`), center(`${GR}No popups on the other days${R}`), '',
-        ...[...PRESETS.map(([l]) => l), 'Custom'].map((l, j) => optionLine(PW, l, j === (p < 0 ? 3 : p), j === 0, { AM, B, R, WH, GR, GN })),
-        '', '', center(strip(s.days, dayCur)), ...(dayWarn ? ['', center(`${RD}Pick at least one day${R}`)] : [])],
-      keyRow([['q', s.prompt ? 'back' : 'cancel'], ['↑ ↓', 'preset'], ['← → space', 'days'], ['enter', step === sts.length - 1 ? 'save' : 'next']]))
+        ...[...PRESETS.map(([l]) => l), 'Pick days'].map((l, j) => optionLine(PW, l, j === dayPick, j === 0, { AM, B, R, WH, GR, GN })),
+        '', '', center(strip(s.days, dayPick === 3 ? dayCur : -1)), ...(dayWarn ? ['', center(`${RD}Pick at least one day${R}`)] : [])],
+      keyRow([['q', s.prompt ? 'back' : 'cancel'], ['↑ ↓', 'choose'], ...(dayPick === 3 ? [['← → space', 'days']] : []), ['enter', step === sts.length - 1 ? 'save' : 'next']]))
     }
     const rec = v => stp.opts.length > 1 && v === DEFAULTS[stp.key] && (v != null || stp.key === 'cutoff') // no cutoff is the pick
     const body = mode === 'type'
@@ -207,10 +209,11 @@ export async function setup({ cfg, path, ctx, argv }) {
         return show()
       }
       if (stp.key === 'days') {
-        const p = presetOf(s.days), upKey = key === '\x1b[A' || key === 'k'
+        const u = key === '\x1b[A' || key === 'k' ? -1 : key === '\x1b[B' || key === 'j' ? 1 : 0, lr = dayStep(key, dayCur) != null
         if (key === 'q' || key === 'Q' || key === '\x1b') { if (s.prompt) { s = { ...settings(cfg), muted: st.prefs().muted }; mode = 'status' } else quit() }
-        else if (upKey || key === '\x1b[B' || key === 'j') { s.days = PRESETS[((p < 0 ? (upKey ? 0 : 2) : p) + (upKey ? 2 : 1)) % 3][1]; dayWarn = false }
-        else if (key === ' ') { s.days = flipDay(s.days, dayCur); dayWarn = false }
+        else if (u) { dayPick = (dayPick + u + 4) % 4; s.days = dayPick < 3 ? PRESETS[dayPick][1] : dayOwn; dayWarn = false }
+        else if (dayPick < 3 && (lr || key === ' ')) { dayPick = 3; dayOwn = [...s.days]; s.days = dayOwn; if (lr) dayCur = dayStep(key, dayCur) } // a day key on a preset goes to Pick days
+        else if (key === ' ') { s.days = dayOwn = flipDay(dayOwn, dayCur); dayWarn = false }
         else if (key === '\r') { if (!s.days.length) dayWarn = true; else next() }
         else dayCur = dayStep(key, dayCur) ?? dayCur
         return show()
