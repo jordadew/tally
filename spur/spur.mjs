@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { readMetric } from '../src/sources.mjs'
 import { title, SETTLED } from './art.mjs'
 import { doneFrame } from './done.mjs'
-import { block, promptLines, focusProblem } from './font.mjs'
+import { block, promptLines, focusProblem, snoozeLog, scrollSnoozes } from './font.mjs'
 import { settings, store, decide, isDone } from './state.mjs'
 
 const B = '\x1b[1m', R = '\x1b[0m', MIN = 60_000
@@ -122,7 +122,7 @@ export async function run({ cmd, argv, cfg, path, ctx }) {
   loaded.then(() => { ready = true })
   const snoozes = st.snoozesToday(now, s)
   const needReason = s.reasonFrom > 0 && snoozes.length + 1 >= s.reasonFrom
-  let reason = null, done = false, doneAt = 0, pageTop = 0
+  let reason = null, done = false, doneAt = 0, pageTop = 0, off = 0 // off: the snooze log's scroll, 0 = the latest
   const hhmm = d => new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 
   const page = () => {
@@ -132,8 +132,7 @@ export async function run({ cmd, argv, cfg, path, ctx }) {
     const prompt = promptLines(s.prompt).map(l => block(l).map(r => center(`${WH}${B}${r}${R}`)))
     const lines = [...prompt.flatMap((b, i) => (i ? ['', ...b] : b)), ...(gap ? ['', center(gap)] : [])]
     if (snoozes.length) lines.push('', '',
-      center(`${AM}${'●'.repeat(snoozes.length)}${R}`), center(`${AM}Snooze ${snoozes.length}×${R}`), '', // a breath before the times
-      ...snoozes.slice(-4).map(x => center(`${GR}${hhmm(x.at)}${R}${x.reason ? `  ${WH}\x1b[3m“${x.reason}”${R}` : ''}`)))
+      ...snoozeLog(snoozes, off, center))
     const foot = reason == null
       ? ['', center([['s', 'snooze'], ['d', 'done']].map(([k, l]) => `${WH}${B}${k}${R}  ${GR}${l}${R}`).join('    '))]
       : [center(`${AM}Why snooze?${R} ${WH}${reason}${AM}▏${R}`), center(`${GR}enter to snooze · delete all to go back${R}`)]
@@ -208,6 +207,7 @@ export async function run({ cmd, argv, cfg, path, ctx }) {
     }
     if (TEST && (key === 'q' || key === 'Q')) quit()
     if (key === 'm' || key === 'M') { muted = !muted; if (muted) stopSound(); st.savePrefs({ ...st.prefs(), muted }); return redraw() }
+    if (key === '\x1b[A' || key === '\x1b[B' || key === 'k' || key === 'j') { off = scrollSnoozes(off, key, snoozes.length); return redraw() }
     if (key === 'r' || key === 'R') { t0 = start(); clearInterval(anim); anim = setInterval(frame, 33); return }
     if (key === 'd' || key === 'D') { if (!TEST) st.addDone(new Date(), s.prompt); return finish() }
     if (key === 's' || key === 'S') { if (needReason) { reason = ''; redraw() } else snooze(null) }

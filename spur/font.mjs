@@ -36,3 +36,22 @@ export function focusProblem(raw) {
   if (promptLines(text).length > 2) return 'too long: it must fit on 2 lines of the popup'
   return null
 }
+
+// Today's snoozes: a dot each, the count, then the latest 4 times + reasons. Past 4, ↑ ↓ scroll
+// (off = how many of the newest are scrolled out below; 0, the latest, is where it always opens):
+// the dots in view stay lit, the rest dim, and a small ▴ ▾ shows there's more that way.
+export const SNOOZES_SHOWN = 4
+export function snoozeLog(sn, off, center) {
+  const R = '\x1b[0m', rgb = ([r, g, b]) => `\x1b[38;2;${r};${g};${b}m`
+  const AM = rgb([240, 172, 96]), AMD = rgb([110, 80, 48]), GR = rgb([150, 150, 150]), WH = rgb([242, 242, 242])
+  const hhmm = d => new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const n = sn.length, end = n - Math.max(0, Math.min(off, n - SNOOZES_SHOWN)), start = Math.max(0, end - SNOOZES_SHOWN), more = n > SNOOZES_SHOWN
+  return [
+    center(sn.map((_, i) => `${i >= start && i < end ? AM : AMD}●`).join('') + R), center(`${AM}Snooze ${n}×${R}`), '', // a breath before the times
+    ...(more ? [center(start ? `${GR}▴${R}` : '')] : []),
+    ...sn.slice(start, end).map(x => center(`${GR}${hhmm(x.at)}${R}${x.reason ? `  ${WH}\x1b[3m“${x.reason}”${R}` : ''}`)),
+    ...(more ? [center(end < n ? `${GR}▾${R}` : '')] : []),
+  ]
+}
+// ↑ ↓ on the snooze log: the new offset, kept in range
+export const scrollSnoozes = (off, key, n) => Math.max(0, Math.min(n - SNOOZES_SHOWN, off + (key === '\x1b[A' || key === 'k' ? 1 : key === '\x1b[B' || key === 'j' ? -1 : 0)))

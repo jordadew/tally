@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync, copyFileSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { dirname } from 'node:path'
 import { settings, store, pastCutoff, isDone, DEFAULTS } from './state.mjs'
-import { focusProblem } from './font.mjs'
+import { focusProblem, snoozeLog, scrollSnoozes } from './font.mjs'
 import { readMetric } from '../src/sources.mjs'
 
 const B = '\x1b[1m', R = '\x1b[0m', MIN = 60_000
@@ -80,7 +80,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     { key: 'muted', name: 'Sound', q: 'Sound', opts: [[false, 'On'], [true, 'Muted']] },
   ]
   const STEPS = () => FIELDS().filter(f => f.key !== 'muted') // sound stays on; edit can mute it
-  let mode, step = 0, pick = 0, typed = '', note = '', row = 0, typeFrom = 'setup'
+  let mode, step = 0, pick = 0, typed = '', note = '', row = 0, typeFrom = 'setup', off = 0 // off: the snooze log's scroll, 0 = the latest
   // Custom time: typed in place, digits only, the colon added for you. timing = the digits, or null.
   let timing = null
   const timeShown = () => (timing.length > 2 ? `${timing.slice(0, 2)}:${timing.slice(2)}` : timing)
@@ -129,8 +129,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     screen([
       center(`${TN}${B}╾✺  S P U R${R}`), center(s.on ? `${GN}on${R}` : `${GR}off${R}`), '', '',
       center(nextUp()), '', '',
-      ...(sn.length ? [center(`${AM}${'●'.repeat(sn.length)}${R}`), center(`${AM}Snooze ${sn.length}×${R}`), '', // a breath before the times
-        ...sn.slice(-4).map(x => center(`${GR}${hhmm(x.at)}${R}${x.reason ? `  ${WH}\x1b[3m“${x.reason}”${R}` : ''}`))] : [center(`${GR}No snoozes today${R}`)]),
+      ...(sn.length ? snoozeLog(sn, off, center) : [center(`${GR}No snoozes today${R}`)]),
       '', '',
       ...(s.prompt ? [center(`${GR}pushes you to ${WH}${s.prompt.toLowerCase()}${R}`)] : []),
       center(`${GR}done when ${s.done ? label(s.done) : 'you press d'} · first nudge ${s.firstAfter} min in${R}`),
@@ -163,6 +162,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     const key = b.toString()
     if (key === '\x03') quit()
     note = ''
+    if (mode !== 'status') off = 0 // back on the status screen, the log opens on the latest again
     if (mode === 'type') {
       if (key === '\x1b') { mode = typeFrom; if (typeFrom === 'edit') s.prompt = settings(cfg).prompt }
       else if (key === '\r') {
@@ -227,6 +227,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     }
     if (key === 'q' || key === 'Q' || key === '\x1b') quit()
     if (key === 'e' || key === 'E') { mode = 'edit'; row = 0 }
+    off = scrollSnoozes(off, key, st.snoozesToday(now, s).length)
     if (key === 't' || key === 'T') { // the test popup, in this window, then back here
       spawnSync(process.execPath, [new URL('../bin/tally.mjs', import.meta.url).pathname, 'spur', 'test', '--config', path], { stdio: 'inherit' })
       process.stdin.setRawMode(true); process.stdout.write('\x1b[?25l')
