@@ -237,6 +237,14 @@ It opens with a short title animation and sound, then shows your prompt. When it
 | `tally spur check --why --dry` | What a prompt would do right now, without changing anything |
 | `tally spur focus "SHIP THE APP"` | Set the prompt |
 
+**Snooze log (optional).** If you keep daily notes (Obsidian, Logseq, plain markdown), Spur can write each snooze into them, so your notes show what pulled you away and when. Add a path with `{date}` to the config:
+
+```json
+"spur": { "log": "~/notes/daily/{date}.md" }
+```
+
+Each snooze goes under `## Snoozes` in that day's note as `- 14:18 the reason you typed`, and a missing note is created. A snooze after midnight goes in the work day's note. Off when `log` isn't set.
+
 ## Privacy
 
 Tally reads local files and the sources you configure, and nothing else. It sends nothing anywhere. The one download is `tally spur sounds`, which fetches Spur's sounds from Freesound and Mixkit. The last result is kept in `~/.local/state/tally/` so the next open is instant; Spur's snoozes and days live there too.

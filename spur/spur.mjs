@@ -13,7 +13,7 @@ import { readMetric } from '../src/sources.mjs'
 import { title, SETTLED } from './art.mjs'
 import { doneFrame } from './done.mjs'
 import { block, promptLines, focusProblem, snoozeLog, scrollSnoozes } from './font.mjs'
-import { settings, store, decide, isDone } from './state.mjs'
+import { settings, store, decide, isDone, logSnooze } from './state.mjs'
 
 const B = '\x1b[1m', R = '\x1b[0m', MIN = 60_000
 const vlen = s => [...s.replace(/\x1b\[[0-9;]*m/g, '')].length
@@ -188,6 +188,7 @@ export async function run({ cmd, argv, cfg, path, ctx }) {
     if (TEST) quit()
     const t = new Date()
     st.addSnooze(t, text)
+    if (s.log) try { logSnooze(s.log, new Date(st.workDay(t, s).dayStart), t, text) } catch {} // the optional snooze log; never blocks the snooze
     st.writeNudge({ ...st.readNudge(), until: new Date(t.getTime() + s.snooze * MIN).toISOString(), kind: 'snooze' })
     quit()
   }

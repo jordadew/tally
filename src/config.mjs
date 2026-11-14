@@ -57,6 +57,7 @@ export function checkConfig(cfg) {
     if (sp.prompt != null) { const p = focusProblem(sp.prompt); if (p) out.push(`spur.prompt: ${p}`) }
     for (const k of ['done', 'since']) if (sp[k] != null) need(sp[k], `spur.${k}`)
     if (sp.cutoff != null && !/^\d{1,2}:\d{2}$/.test(sp.cutoff)) out.push('spur.cutoff must be "HH:MM" or null')
+    if (sp.log != null && !(typeof sp.log === 'string' && sp.log.includes('{date}'))) out.push('spur.log must be a path with {date} in it, e.g. "~/notes/daily/{date}.md", or null')
   }
   return out
 }

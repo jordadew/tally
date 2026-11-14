@@ -1,12 +1,13 @@
 // Spur's settings, state and the rules for when it fires. State lives in Tally's state folder
 // (~/.local/state/tally/spur/), never in the config; settings come from the config's "spur" block.
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
-import { join } from 'node:path'
-import { stateDir } from '../src/config.mjs'
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { stateDir, expand } from '../src/config.mjs'
 
 export const DEFAULTS = {
   on: true, prompt: null, done: null, since: null,
   firstAfter: 45, snooze: 45, reasonFrom: 2, cutoff: null, newDayAfter: 5,
+  log: null, // a daily-note path with {date}, e.g. "~/notes/daily/{date}.md": each snooze is added there too
 }
 export const settings = cfg => ({ ...DEFAULTS, ...(cfg.spur ?? {}) })
 
@@ -67,3 +68,25 @@ export function decide({ now, s, day, open, doneToday }) {
 
 // A done metric's value counts as done when it's above 0 or true.
 export const isDone = v => v === true || (typeof v === 'number' && v > 0) || (typeof v === 'string' && Number(v) > 0)
+
+// The snooze log (off unless spur.log is set): each snooze goes into the work day's note, under
+// `## Snoozes`, as `- HH:MM reason` (time only without one). {date} is the work day's YYYY-MM-DD, so a
+// snooze after midnight lands in the note of the day it belongs to. A missing note is created.
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+export function withSnoozes(text, lines) {
+  const all = text.split('\n'), at = all.indexOf('## Snoozes')
+  if (at === -1) return `${text.replace(/\n*$/, '')}${text.trim() ? '\n\n' : ''}## Snoozes\n${lines.join('\n')}\n`
+  let end = at + 1
+  while (end < all.length && !all[end].startsWith('## ')) end++
+  let last = end; while (last > at + 1 && !all[last - 1].trim()) last--
+  all.splice(last, 0, ...lines)
+  return all.join('\n')
+}
+export function logSnooze(template, day, at, reason) {
+  const date = ymd(day), p = expand(template.replaceAll('{date}', date))
+  const time = at.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  const text = existsSync(p) ? readFileSync(p, 'utf8') : `# ${date}\n`
+  mkdirSync(dirname(p), { recursive: true })
+  writeFileSync(p, withSnoozes(text, [`- ${time}${reason ? ` ${reason}` : ''}`]))
+  return p
+}

@@ -1,11 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, existsSync, readdirSync } from 'node:fs'
+import { mkdtempSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { promptLines, focusProblem, block } from '../spur/font.mjs'
-import { settings, store, decide, pastCutoff, isDone } from '../spur/state.mjs'
+import { settings, store, decide, pastCutoff, isDone, logSnooze } from '../spur/state.mjs'
 import { checkConfig } from '../src/config.mjs'
 
 const at = s => new Date(s)
@@ -97,4 +97,16 @@ test('tally init can add Spur, checking the wording', async () => {
   writeFileSync(join(d, 'log.md'), `- ${new Date().toISOString().slice(0, 10)} did it\n`)
   execFileSync('node', ['bin/tally.mjs', 'init', '--config', join(d, 'c.json')], { input: `4\n2\n${join(d, 'log.md')}\ny\nship it!\nship the app\n1\n`, cwd: new URL('..', import.meta.url).pathname })
   assert.deepEqual(JSON.parse(readFileSync(join(d, 'c.json'), 'utf8')).spur, { prompt: 'SHIP THE APP', done: 'code_today', since: 'code_since' })
+})
+
+test('snooze log: off by default; adds to the work day\'s note, made if missing, keeping what follows', () => {
+  assert.equal(settings({ spur: {} }).log, null)
+  assert.deepEqual(checkConfig({ metrics: {}, spur: { log: '~/notes/x.md' } }), ['spur.log must be a path with {date} in it, e.g. "~/notes/daily/{date}.md", or null'])
+  const dir = mkdtempSync(join(tmpdir(), 'spur-log-')), tpl = join(dir, 'daily', '{date}.md'), day = new Date(2026, 10, 13)
+  const p = logSnooze(tpl, day, new Date(2026, 10, 14, 0, 11), 'still on it')
+  assert.equal(p, join(dir, 'daily', '2026-11-13.md')) // after midnight: the work day's note
+  assert.equal(readFileSync(p, 'utf8'), '# 2026-11-13\n\n## Snoozes\n- 00:11 still on it\n')
+  writeFileSync(p, '# 2026-11-13\n\n## Snoozes\n- 09:00\n\n## Notes\nmine\n')
+  logSnooze(tpl, day, new Date(2026, 10, 13, 10, 30), null)
+  assert.equal(readFileSync(p, 'utf8'), '# 2026-11-13\n\n## Snoozes\n- 09:00\n- 10:30\n\n## Notes\nmine\n')
 })
