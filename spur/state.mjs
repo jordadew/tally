@@ -7,7 +7,21 @@ import { stateDir, expand } from '../src/config.mjs'
 export const DEFAULTS = {
   on: true, prompt: null, done: null, since: null,
   firstAfter: 45, snooze: 45, reasonFrom: 2, cutoff: null, newDayAfter: 5,
+  days: [1, 2, 3, 4, 5], // the days it nudges on, as getDay() numbers (0 = Sunday)
   log: null, // a daily-note path with {date}, e.g. "~/notes/daily/{date}.md": each snooze is added there too
+}
+// Days are shown Monday first.
+export const DAYS = [[1, 'M', 'Mon', 'Monday'], [2, 'T', 'Tue', 'Tuesday'], [3, 'W', 'Wed', 'Wednesday'], [4, 'T', 'Thu', 'Thursday'], [5, 'F', 'Fri', 'Friday'], [6, 'S', 'Sat', 'Saturday'], [0, 'S', 'Sun', 'Sunday']]
+export const PRESETS = [['Weekdays', [1, 2, 3, 4, 5]], ['Every day', [1, 2, 3, 4, 5, 6, 0]], ['Weekends', [6, 0]]]
+export const sameDays = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every(x => b.includes(x))
+export const presetOf = days => PRESETS.findIndex(([, d]) => sameDays(d, days))
+// "Weekdays", "Every day", "Weekends", a run "Tue–Thu", or a list "Mon, Wed, Fri"
+export function daysName(days) {
+  const p = presetOf(days)
+  if (p >= 0) return PRESETS[p][0]
+  const idx = DAYS.map(([d], i) => (days.includes(d) ? i : -1)).filter(i => i >= 0)
+  if (idx.length > 2 && idx.every((x, i) => !i || x === idx[i - 1] + 1)) return `${DAYS[idx[0]][2]}–${DAYS[idx.at(-1)][2]}`
+  return idx.map(i => DAYS[i][2]).join(', ')
 }
 export const settings = cfg => ({ ...DEFAULTS, ...(cfg.spur ?? {}) })
 
@@ -57,6 +71,7 @@ export function pastCutoff(now, s, dayStart) {
 export function decide({ now, s, day, open, doneToday }) {
   if (!s.on) return 'off'
   if (!s.prompt) return 'no prompt set (run tally spur setup)'
+  if (!s.days.includes(now.getDay())) return 'off day'
   if (now < new Date(new Date(day.dayStart).getTime() + s.firstAfter * MIN)) return 'warm-up'
   if (pastCutoff(now, s, day.dayStart)) return 'after cutoff'
   if (day.until && now < new Date(day.until)) return day.kind ?? 'snoozed'

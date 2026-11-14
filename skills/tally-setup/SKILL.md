@@ -92,7 +92,7 @@ Spur pops up while they work in Claude Code (inside herdr or tmux) until today's
    - One action that can be finished in a day (BE CONSISTENT, GET FIT fail).
 4. **Done number.** Find or create a Tally number that's above 0 once it's done today (a `today` window), using steps 3–5's rules; ideally a matching `days_since` number for the "Day N since last done" line. If there's no data for it, say so: they can press `d` on the popup instead.
 5. **Save:** `tally spur focus "<WORDING>"` sets the prompt (it checks the wording fits and prints why if not). Add `"done"` and `"since"` (metric names) to the config's `"spur"` block; run `tally check` and `tally spur check --why --dry`.
-6. **Finish:** offer, with their yes for each: `tally spur sounds` (downloads the sounds from Freesound and Mixkit and builds them; needs ffmpeg), `tally spur install` (adds the Claude Code prompt hook; it shows the change first), and `tally spur test` to see it. `tally spur setup` changes timing, cutoff and sounds later.
+6. **Finish:** offer, with their yes for each: `tally spur sounds` (downloads the sounds from Freesound and Mixkit and builds them; needs ffmpeg), `tally spur install` (adds the Claude Code prompt hook; it shows the change first), and `tally spur test` to see it. `tally spur setup` changes days, timing, cutoff and sounds later.
 
 ## Changing an existing setup
 

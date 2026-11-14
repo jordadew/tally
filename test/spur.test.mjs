@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { promptLines, focusProblem, block } from '../spur/font.mjs'
-import { settings, store, decide, pastCutoff, isDone, logSnooze } from '../spur/state.mjs'
+import { settings, store, decide, pastCutoff, isDone, logSnooze, daysName } from '../spur/state.mjs'
 import { checkConfig } from '../src/config.mjs'
 
 const at = s => new Date(s)
@@ -30,6 +30,16 @@ test('decide: warm-up, due, snoozed, done, already open, off', () => {
   assert.equal(decide({ now: at('2026-11-13T10:00'), s: S, day, open: true }), 'already open')
   assert.equal(decide({ now: at('2026-11-13T10:00'), s: { ...S, on: false }, day }), 'off')
   assert.match(decide({ now: at('2026-11-13T10:00'), s: { ...S, prompt: null }, day }), /no prompt/)
+})
+
+test('days: off days never nudge; names read Monday first', () => {
+  const sat = { dayStart: '2026-11-14T09:00' }
+  assert.equal(decide({ now: at('2026-11-14T10:00'), s: S, day: sat }), 'off day') // weekdays by default
+  assert.equal(decide({ now: at('2026-11-14T10:00'), s: { ...S, days: [6, 0] }, day: sat }), 'due')
+  assert.equal(daysName([1, 2, 3, 4, 5]), 'Weekdays')
+  assert.equal(daysName([0, 1, 2, 3, 4, 5, 6]), 'Every day')
+  assert.equal(daysName([2, 3, 4]), 'Tue–Thu')
+  assert.equal(daysName([5, 1, 3]), 'Mon, Wed, Fri')
 })
 
 test('cutoff is measured on the work day\'s own date', () => {

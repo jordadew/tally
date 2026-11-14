@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync, copyFileSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { dirname } from 'node:path'
-import { settings, store, pastCutoff, isDone, DEFAULTS } from './state.mjs'
+import { settings, store, pastCutoff, isDone, DEFAULTS, DAYS, PRESETS, sameDays, presetOf, daysName } from './state.mjs'
 import { focusProblem, snoozeLog, scrollSnoozes } from './font.mjs'
 import { readMetric } from '../src/sources.mjs'
 
@@ -12,9 +12,14 @@ const B = '\x1b[1m', R = '\x1b[0m', MIN = 60_000
 const vlen = s => [...s.replace(/\x1b\[[0-9;]*m/g, '')].length
 const sp = n => ' '.repeat(Math.max(0, n))
 const rgbc = ([r, g, b]) => `\x1b[38;2;${r};${g};${b}m`
-const WH = rgbc([242, 242, 242]), GR = rgbc([150, 150, 150]), AM = rgbc([240, 172, 96]), GN = rgbc([120, 200, 120]), TN = rgbc([214, 168, 112]), RD = rgbc([232, 96, 86])
+const WH = rgbc([242, 242, 242]), GR = rgbc([150, 150, 150]), AM = rgbc([240, 172, 96]), GN = rgbc([120, 200, 120]), TN = rgbc([214, 168, 112]), RD = rgbc([232, 96, 86]), FAINT = rgbc([70, 70, 70])
 const hhmm = d => new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 const cap = t => t[0] + t.slice(1).toLowerCase()
+const eq = (a, b) => (Array.isArray(a) ? sameDays(a, b) : a === b)
+// The week as a strip, Monday first: on days white, off days faint, the day you're on in amber [ ].
+const strip = (days, cur = -1) => DAYS.map(([d, l], i) => { const t = days.includes(d) ? `${WH}${B}${l}${R}` : `${FAINT}${l}${R}`; return i === cur ? `${AM}${B}[${R}${t}${AM}${B}]${R}` : ` ${t} ` }).join('')
+const flipDay = (days, cur) => { const d = DAYS[cur][0]; return days.includes(d) ? days.filter(x => x !== d) : DAYS.map(([x]) => x).filter(x => x === d || days.includes(x)) }
+const dayStep = (key, cur) => (key === '\x1b[C' || key === 'l' ? (cur + 1) % 7 : key === '\x1b[D' || key === 'h' ? (cur + 6) % 7 : null)
 // One option line, centred on its own label: the › marker sits just left of it and "(recommended)"
 // hangs off the right, so neither moves the label. Labels too wide for the popup are cut with …
 const optionLine = (W, label, on, rec, c) => {
@@ -50,7 +55,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     const raw = JSON.parse(readFileSync(path, 'utf8'))
     const { muted, ...spur } = s
     copyFileSync(path, `${path}.bak`)
-    writeFileSync(path, JSON.stringify({ ...raw, spur: Object.fromEntries(Object.entries(spur).filter(([k, v]) => v !== DEFAULTS[k] || k === 'prompt')) }, null, 2) + '\n')
+    writeFileSync(path, JSON.stringify({ ...raw, spur: Object.fromEntries(Object.entries(spur).filter(([k, v]) => !eq(v, DEFAULTS[k]) || k === 'prompt')) }, null, 2) + '\n')
     st.savePrefs({ ...st.prefs(), muted })
     cfg.spur = spur
   }
@@ -68,6 +73,10 @@ export async function setup({ cfg, path, ctx, argv }) {
       ...(s.prompt ? [[s.prompt, cap(s.prompt)]] : []),
       ['@type', 'Type it'], ['@claude', 'Work it out with Claude'],
     ] },
+    { key: 'days', name: 'Days', q: 'Which days should it nudge you?', opts: (() => { // a picked set shows as its own option
+      const own = Array.isArray(s.days) && presetOf(s.days) < 0
+      return [...PRESETS.map(([l, d]) => [d, l]), ...(own ? [[s.days, daysName(s.days)]] : []), ['@days', 'Pick days']]
+    })() },
     { key: 'done', name: 'Done when', q: 'Done for the day when this is above 0', opts: [...todayIds.map(i => [i, label(i)]), [null, 'Nothing: I\'ll press d']] },
     { key: 'since', name: 'Day count', q: 'Count the days since', opts: [...daysIds.map(i => [i, label(i)]), [null, 'The last time I pressed d']] },
     { key: 'firstAfter', name: 'First nudge', q: 'First nudge, after your first prompt of the day', opts: [30, 45, 60, 90].map(m => [m, `${m} min`]) },
@@ -83,6 +92,8 @@ export async function setup({ cfg, path, ctx, argv }) {
   let mode, step = 0, pick = 0, typed = '', note = '', row = 0, typeFrom = 'setup', off = 0 // off: the snooze log's scroll, 0 = the latest
   // Custom time: typed in place, digits only, the colon added for you. timing = the digits, or null.
   let timing = null
+  // Days: dayCur = the day you're on; picking = the days being picked on the edit row (null when not); dayWarn = none picked.
+  let dayCur = 0, picking = null, dayWarn = false
   const timeShown = () => (timing.length > 2 ? `${timing.slice(0, 2)}:${timing.slice(2)}` : timing)
   const timeOk = () => timing.length === 4 && +timing.slice(0, 2) < 24 && +timing.slice(2) < 60
   // The time box: what you've typed fills an --:-- mask, the rest stays grey.
@@ -92,15 +103,23 @@ export async function setup({ cfg, path, ctx, argv }) {
     if (/^\d+$/.test(key)) timing = (timing + key).slice(0, 4) // digits can arrive together (paste)
     else if (key === '\x7f') timing = timing.slice(0, -1)
   }
-  const firstPick = k => Math.max(0, STEPS()[step].opts.findIndex(([v]) => v === s[k]))
-  const startSetup = () => { mode = 'setup'; step = 0; pick = firstPick('on') }
+  const firstPick = k => Math.max(0, STEPS()[step].opts.findIndex(([v]) => eq(v, s[k])))
+  const startSetup = () => { mode = 'setup'; step = 0; dayCur = 0; dayWarn = false; pick = firstPick('on') }
   const next = () => {
     const steps = STEPS()
     if (step === steps.length - 1 || s.on === false) { save(); mode = 'status'; return }
-    step++; pick = firstPick(steps[step].key)
+    step++; dayCur = 0; pick = firstPick(steps[step].key)
   }
   const drawSetup = () => {
     const sts = STEPS(), stp = sts[step]
+    if (stp.key === 'days') { // the presets, with the week under them; editing a day moves the highlight to its preset, or Custom
+      const p = presetOf(s.days)
+      return screen([center(`${TN}${B}╾✺  S P U R   S E T U P${R}`), center(`${GR}${step + 1} / ${sts.length}${R}`), '', '',
+        center(`${WH}${B}${stp.q}${R}`), center(`${GR}No popups on the other days${R}`), '',
+        ...[...PRESETS.map(([l]) => l), 'Custom'].map((l, j) => optionLine(PW, l, j === (p < 0 ? 3 : p), j === 0, { AM, B, R, WH, GR, GN })),
+        '', '', center(strip(s.days, dayCur)), ...(dayWarn ? ['', center(`${RD}Pick at least one day${R}`)] : [])],
+      keyRow([['q', s.prompt ? 'back' : 'cancel'], ['↑ ↓', 'preset'], ['← → space', 'days'], ['enter', step === sts.length - 1 ? 'save' : 'next']]))
+    }
     const rec = v => stp.opts.length > 1 && v === DEFAULTS[stp.key] && (v != null || stp.key === 'cutoff') // no cutoff is the pick
     const body = mode === 'type'
       ? [center(`${WH}${B}${stp.q}${R}`), '', center(`${WH}${typed}${AM}▏${R}`), '', center(focusProblem(typed) && typed ? `${RD}${focusProblem(typed)}${R}` : `${GR}Verb first, short and clear: SHIP THE APP, SEND PITCHES${R}`)]
@@ -115,6 +134,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     const n = st.workDay(now, s)
     if (!s.on) return `${GR}Spur is off${R}`
     if (!s.prompt) return `${GR}No prompt yet: e to set one${R}`
+    if (!s.days.includes(now.getDay())) return `${GR}Off today${R}`
     if (n.done || doneNow) return `${GN}${B}✓  Done for today${R}`
     if (n.fresh) return `${GR}Starts ${s.firstAfter} min after your first prompt${R}`
     const first = new Date(new Date(n.dayStart).getTime() + s.firstAfter * MIN)
@@ -131,7 +151,7 @@ export async function setup({ cfg, path, ctx, argv }) {
       center(nextUp()), '', '',
       ...(sn.length ? snoozeLog(sn, off, center) : [center(`${GR}No snoozes today${R}`)]),
       '', '',
-      ...(s.prompt ? [center(`${GR}pushes you to ${WH}${s.prompt.toLowerCase()}${R}`)] : []),
+      ...(s.prompt ? [center(`${GR}pushes you to ${WH}${s.prompt.toLowerCase()}${GR} · ${daysName(s.days)}${R}`)] : [center(`${GR}${daysName(s.days)}${R}`)]),
       center(`${GR}done when ${s.done ? label(s.done) : 'you press d'} · first nudge ${s.firstAfter} min in${R}`),
       center(`${GR}snooze ${s.snooze} min · reason from ${reason === 'never' ? 'never' : `the ${reason}`} · ${s.cutoff ? `quiet after ${s.cutoff}` : 'no cutoff'}${R}`),
       ...(note ? ['', center(`${AM}${note}${R}`)] : []),
@@ -141,11 +161,14 @@ export async function setup({ cfg, path, ctx, argv }) {
   const drawEdit = () => {
     const fs = FIELDS(), w = Math.max(...fs.map(f => f.name.length)) + 3, vw = 26, pad = sp(Math.floor((PW - (2 + w + vw)) / 2))
     const rows = fs.map((f, i) => {
-      const v = (f.opts.find(([x]) => x === s[f.key]) ?? f.opts[0])[1]
+      const v = (f.opts.find(([x]) => eq(x, s[f.key])) ?? f.opts[0])[1]
+      if (i === row && f.key === 'days' && picking) return pad + `${AM}${B}›${R} ${WH}${B}${f.name.padEnd(w)}${R} ${strip(picking, dayCur)}`
       if (i === row && f.key === 'cutoff' && timing != null) return pad + `${AM}${B}›${R} ${WH}${B}${f.name.padEnd(w)}${R}  ${timeBox()}`
       return pad + (i === row ? `${AM}${B}›${R} ${WH}${B}${f.name.padEnd(w)}${R}${AM}‹${R} ${WH}${B}${v}${R} ${AM}›${R}` : `  ${GR}${f.name.padEnd(w)}${R}  ${WH}${v}${R}`)
     })
     const at = fs[row].key === 'prompt' && String(s.prompt).startsWith('@') ? center(`${AM}enter to ${s.prompt === '@type' ? 'type it' : 'start a chat with Claude'}${R}`)
+      : fs[row].key === 'days' && picking ? center(dayWarn ? `${RD}Pick at least one day${R}` : `${GR}← → day · space on/off · enter to save · esc to cancel${R}`)
+      : fs[row].key === 'days' && s.days === '@days' ? center(`${AM}enter to pick days${R}`)
       : fs[row].key === 'cutoff' && timing != null ? center(`${GR}type a time, e.g. 2215 · enter to save · esc to cancel${R}`)
       : fs[row].key === 'cutoff' && s.cutoff === '@time' ? center(`${AM}enter to type a time${R}`) : ''
     screen([center(`${TN}${B}╾✺  S P U R   E D I T${R}`), '', '', ...rows, '', at, ...(note ? ['', center(`${AM}${note}${R}`)] : [])],
@@ -183,6 +206,15 @@ export async function setup({ cfg, path, ctx, argv }) {
         else timeKey(key)
         return show()
       }
+      if (stp.key === 'days') {
+        const p = presetOf(s.days), upKey = key === '\x1b[A' || key === 'k'
+        if (key === 'q' || key === 'Q' || key === '\x1b') { if (s.prompt) { s = { ...settings(cfg), muted: st.prefs().muted }; mode = 'status' } else quit() }
+        else if (upKey || key === '\x1b[B' || key === 'j') { s.days = PRESETS[((p < 0 ? (upKey ? 0 : 2) : p) + (upKey ? 2 : 1)) % 3][1]; dayWarn = false }
+        else if (key === ' ') { s.days = flipDay(s.days, dayCur); dayWarn = false }
+        else if (key === '\r') { if (!s.days.length) dayWarn = true; else next() }
+        else dayCur = dayStep(key, dayCur) ?? dayCur
+        return show()
+      }
       if (key === '\r' && stp.opts[pick][0] === '@time') { timing = ''; return show() }
       if (key === 'q' || key === 'Q' || key === '\x1b') { if (s.prompt) { s = { ...settings(cfg), muted: st.prefs().muted }; mode = 'status' } else quit() }
       else if (key === '\x1b[A' || key === 'k') pick = (pick + stp.opts.length - 1) % stp.opts.length
@@ -198,11 +230,12 @@ export async function setup({ cfg, path, ctx, argv }) {
       return show()
     }
     if (mode === 'edit') {
-      const f = FIELDS()[row], i = Math.max(0, f.opts.findIndex(([v]) => v === s[f.key]))
+      const f = FIELDS()[row], i = Math.max(0, f.opts.findIndex(([v]) => eq(v, s[f.key])))
       const leave = () => { // choices, not values
         if (String(s.prompt).startsWith('@')) s.prompt = settings(cfg).prompt
         if (s.cutoff === '@time') s.cutoff = settings(cfg).cutoff
-        timing = null
+        if (s.days === '@days') s.days = settings(cfg).days
+        timing = null; picking = null; dayWarn = false
       }
       if (timing != null) {
         if (key === '\x1b') leave()
@@ -210,13 +243,21 @@ export async function setup({ cfg, path, ctx, argv }) {
         else timeKey(key)
         return show()
       }
+      if (picking) { // picking days on the Days row
+        if (key === '\x1b') leave()
+        else if (key === ' ') { picking = flipDay(picking, dayCur); dayWarn = false }
+        else if (key === '\r') { if (!picking.length) dayWarn = true; else { s.days = picking; picking = null; save() } }
+        else dayCur = dayStep(key, dayCur) ?? dayCur
+        return show()
+      }
+      if (key === '\r' && f.key === 'days' && s.days === '@days') { picking = [...settings(cfg).days]; dayCur = 0; return show() }
       if (key === '\r' && f.key === 'cutoff' && s.cutoff === '@time') { timing = ''; return show() }
       if (key === 'q' || key === 'Q' || key === '\x1b') { leave(); mode = 'status' }
       else if (key === '\x1b[A' || key === 'k') { leave(); row = (row + FIELDS().length - 1) % FIELDS().length }
       else if (key === '\x1b[B' || key === 'j') { leave(); row = (row + 1) % FIELDS().length }
       else if (key === '\x1b[C' || key === '\x1b[D' || key === 'l' || key === 'h') {
         s[f.key] = f.opts[(i + (key === '\x1b[C' || key === 'l' ? 1 : f.opts.length - 1)) % f.opts.length][0]
-        if (!String(s.prompt).startsWith('@') && s.cutoff !== '@time') save()
+        if (!String(s.prompt).startsWith('@') && s.cutoff !== '@time' && s.days !== '@days') save()
       } else if (key === '\r' && s.prompt === '@type') { mode = 'type'; typeFrom = 'edit'; typed = '' }
       else if (key === '\r' && s.prompt === '@claude') {
         leave()
