@@ -36,6 +36,8 @@ test('days: off days never nudge; names read Monday first', () => {
   const sat = { dayStart: '2026-11-14T09:00' }
   assert.equal(decide({ now: at('2026-11-14T10:00'), s: S, day: sat }), 'off day') // weekdays by default
   assert.equal(decide({ now: at('2026-11-14T10:00'), s: { ...S, days: [6, 0] }, day: sat }), 'due')
+  const mon = { dayStart: '2026-11-16T00:30' }
+  assert.equal(decide({ now: at('2026-11-16T01:30'), s: S, day: mon }), 'off day') // before 06:00 it's still Sunday
   assert.equal(daysName([1, 2, 3, 4, 5]), 'Weekdays')
   assert.equal(daysName([0, 1, 2, 3, 4, 5, 6]), 'Every day')
   assert.equal(daysName([2, 3, 4]), 'Tue–Thu')
@@ -55,6 +57,10 @@ test('work day: a 5 hour break starts a new one; snoozes and d are per work day 
   st.writeNudge({ dayStart: '2026-11-13T09:00', lastPrompt: '2026-11-14T02:30' })
   assert.equal(st.workDay(at('2026-11-14T03:00'), S).fresh, undefined) // still the 13th's day
   assert.equal(st.workDay(at('2026-11-14T08:30'), S).fresh, true) // 6 h later: new day
+  st.writeNudge({ dayStart: '2026-11-16T09:00', lastPrompt: '2026-11-16T19:30' })
+  assert.equal(st.workDay(at('2026-11-17T01:30'), S).fresh, undefined) // 6 h break, but before 06:00: still the 16th
+  assert.equal(st.workDay(at('2026-11-17T07:00'), S).fresh, true)
+  st.writeNudge({ dayStart: '2026-11-13T09:00', lastPrompt: '2026-11-14T02:30' })
   st.addSnooze(at('2026-11-13T23:00'), null)
   st.addSnooze(at('2026-11-14T01:00'), 'tired')
   assert.equal(st.snoozesToday(at('2026-11-14T03:00'), S).length, 2)

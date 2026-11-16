@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync, copyFileSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { dirname } from 'node:path'
-import { settings, store, pastCutoff, isDone, DEFAULTS, DAYS, PRESETS, sameDays, presetOf, daysName } from './state.mjs'
+import { settings, store, workDate, pastCutoff, isDone, DEFAULTS, DAYS, PRESETS, sameDays, presetOf, daysName } from './state.mjs'
 import { focusProblem, snoozeLog, scrollSnoozes } from './font.mjs'
 import { readMetric } from '../src/sources.mjs'
 
@@ -137,7 +137,7 @@ export async function setup({ cfg, path, ctx, argv }) {
     const n = st.workDay(now, s)
     if (!s.on) return `${GR}Spur is off${R}`
     if (!s.prompt) return `${GR}No prompt yet: e to set one${R}`
-    if (!s.days.includes(now.getDay())) return `${GR}Off today${R}`
+    if (!s.days.includes(workDate(now).getDay())) return `${GR}Off today${R}`
     if (n.done || doneNow) return `${GN}${B}✓  Done for today${R}`
     if (n.fresh) return `${GR}Starts ${s.firstAfter} min after your first prompt${R}`
     const first = new Date(new Date(n.dayStart).getTime() + s.firstAfter * MIN)

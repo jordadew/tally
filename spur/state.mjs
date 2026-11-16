@@ -26,6 +26,9 @@ export function daysName(days) {
 export const settings = cfg => ({ ...DEFAULTS, ...(cfg.spur ?? {}) })
 
 const MIN = 60_000
+// Days turn over at 06:00: until then it is still the day before (Sunday 01:00 is Sunday, not Monday).
+export const DAY_TURN = 6
+export const workDate = d => new Date(new Date(d).getTime() - DAY_TURN * 3600e3)
 const dayOf = d => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 const lines = file => { try { return readFileSync(file, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) } catch { return [] } }
 
@@ -40,11 +43,13 @@ export function store(dir = join(stateDir(), 'spur')) {
     // m on the popup: remembered here, not in the config
     prefs: () => ({ muted: false, ...read(PREFS) }),
     savePrefs: p => put(PREFS, JSON.stringify(p)),
-    // The work day starts at the first prompt after a break of newDayAfter hours, so working past
-    // midnight still counts as the day before. fresh = no prompt yet since that break.
+    // The work day starts at the first prompt after a break of newDayAfter hours, and only once the
+    // date has turned (06:00), so working past midnight still counts as the day before.
+    // fresh = no prompt yet since that break.
     workDay(now, s) {
       const n = st.readNudge(), last = n.lastPrompt ? new Date(n.lastPrompt) : null
-      const fresh = !n.dayStart || !last || now - last >= s.newDayAfter * 3600e3
+      const sameDate = n.dayStart && ymd(workDate(n.dayStart)) === ymd(workDate(now))
+      const fresh = !n.dayStart || !last || (now - last >= s.newDayAfter * 3600e3 && !sameDate)
       return fresh ? { dayStart: now.toISOString(), fresh: true } : n
     },
     snoozesToday: (now, s) => lines(SNOOZES).filter(x => new Date(x.at) >= new Date(st.workDay(now, s).dayStart)),
@@ -71,7 +76,7 @@ export function pastCutoff(now, s, dayStart) {
 export function decide({ now, s, day, open, doneToday }) {
   if (!s.on) return 'off'
   if (!s.prompt) return 'no prompt set (run tally spur setup)'
-  if (!s.days.includes(now.getDay())) return 'off day'
+  if (!s.days.includes(workDate(now).getDay())) return 'off day'
   if (now < new Date(new Date(day.dayStart).getTime() + s.firstAfter * MIN)) return 'warm-up'
   if (pastCutoff(now, s, day.dayStart)) return 'after cutoff'
   if (day.until && now < new Date(day.until)) return day.kind ?? 'snoozed'
