@@ -51,15 +51,17 @@ test('cutoff is measured on the work day\'s own date', () => {
   assert.equal(pastCutoff(at('2026-11-14T01:00'), { ...S, cutoff: null }, '2026-11-13T09:00'), false)
 })
 
-test('work day: a 5 hour break starts a new one; snoozes and d are per work day / prompt', () => {
+test('work day: a new date (turning at 06:00) starts a new one; snoozes and d are per work day / prompt', () => {
   const st = store(mkdtempSync(join(tmpdir(), 'spur-')))
   assert.equal(st.workDay(at('2026-11-13T09:00'), S).fresh, true)
   st.writeNudge({ dayStart: '2026-11-13T09:00', lastPrompt: '2026-11-14T02:30' })
   assert.equal(st.workDay(at('2026-11-14T03:00'), S).fresh, undefined) // still the 13th's day
   assert.equal(st.workDay(at('2026-11-14T08:30'), S).fresh, true) // 6 h later: new day
   st.writeNudge({ dayStart: '2026-11-16T09:00', lastPrompt: '2026-11-16T19:30' })
-  assert.equal(st.workDay(at('2026-11-17T01:30'), S).fresh, undefined) // 6 h break, but before 06:00: still the 16th
+  assert.equal(st.workDay(at('2026-11-17T01:30'), S).fresh, undefined) // before 06:00: still the 16th
   assert.equal(st.workDay(at('2026-11-17T07:00'), S).fresh, true)
+  st.writeNudge({ dayStart: '2026-11-17T10:23', lastPrompt: '2026-11-18T05:30' })
+  assert.equal(st.workDay(at('2026-11-18T08:36'), S).fresh, true) // prompts through the night: still a new day
   st.writeNudge({ dayStart: '2026-11-13T09:00', lastPrompt: '2026-11-14T02:30' })
   st.addSnooze(at('2026-11-13T23:00'), null)
   st.addSnooze(at('2026-11-14T01:00'), 'tired')

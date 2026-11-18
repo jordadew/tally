@@ -6,7 +6,7 @@ import { stateDir, expand } from '../src/config.mjs'
 
 export const DEFAULTS = {
   on: true, prompt: null, done: null, since: null,
-  firstAfter: 45, snooze: 45, reasonFrom: 2, cutoff: null, newDayAfter: 5,
+  firstAfter: 45, snooze: 45, reasonFrom: 2, cutoff: null,
   days: [1, 2, 3, 4, 5], // the days it nudges on, as getDay() numbers (0 = Sunday)
   log: null, // a daily-note path with {date}, e.g. "~/notes/daily/{date}.md": each snooze is added there too
 }
@@ -43,14 +43,12 @@ export function store(dir = join(stateDir(), 'spur')) {
     // m on the popup: remembered here, not in the config
     prefs: () => ({ muted: false, ...read(PREFS) }),
     savePrefs: p => put(PREFS, JSON.stringify(p)),
-    // The work day starts at the first prompt after a break of newDayAfter hours, and only once the
-    // date has turned (06:00), so working past midnight still counts as the day before.
-    // fresh = no prompt yet since that break.
-    workDay(now, s) {
-      const n = st.readNudge(), last = n.lastPrompt ? new Date(n.lastPrompt) : null
+    // The work day starts at the first prompt on a new date, and dates turn at 06:00, so working
+    // past midnight still counts as the day before. fresh = no prompt yet today.
+    workDay(now) {
+      const n = st.readNudge()
       const sameDate = n.dayStart && ymd(workDate(n.dayStart)) === ymd(workDate(now))
-      const fresh = !n.dayStart || !last || (now - last >= s.newDayAfter * 3600e3 && !sameDate)
-      return fresh ? { dayStart: now.toISOString(), fresh: true } : n
+      return sameDate ? n : { dayStart: now.toISOString(), fresh: true }
     },
     snoozesToday: (now, s) => lines(SNOOZES).filter(x => new Date(x.at) >= new Date(st.workDay(now, s).dayStart)),
     addSnooze: (at, reason) => put(SNOOZES, JSON.stringify({ at: at.toISOString(), reason: reason || null }) + '\n', true),
